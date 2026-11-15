@@ -136,8 +136,17 @@ function RouteContent() {
 export default function App() {
   const isQuizActive = useStore((state) => state.isQuizActive)
 
+  const routerBasename = (() => {
+    if (typeof window === 'undefined') return import.meta.env.BASE_URL || '/'
+    const firstSegment = window.location.pathname.split('/')[1]
+    if (firstSegment && /^(edubridge|teman)/i.test(firstSegment)) {
+      return `/${firstSegment}`
+    }
+    return import.meta.env.BASE_URL || '/'
+  })()
+
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <BrowserRouter basename={routerBasename}>
       <ScrollToTop />
       <ScrollRevealObserver />
       <RouteContent />

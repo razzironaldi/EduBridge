@@ -107,13 +107,13 @@ export function LandingPage() {
           className="glass-pill-nav mx-auto flex h-16 max-w-6xl items-center justify-between rounded-full px-3 sm:px-5 spring-transition"
           aria-label="Navigasi utama"
         >
-          <Link to="/" className="flex items-center gap-3 pl-1" aria-label="TemanAkses Beranda">
+          <Link to="/" className="flex items-center gap-3 pl-1" aria-label="EduBridge Beranda">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-900 text-white font-extrabold text-xs tracking-tight shadow-soft">
-              TA
+              EB
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-sm sm:text-base text-text-primary tracking-tight leading-none">
-                TemanAkses
+                EduBridge
               </span>
               <span className="text-[11px] font-medium text-text-muted mt-0.5">
                 Adaptive Learning Studio
@@ -503,7 +503,7 @@ export function LandingPage() {
               Mengapa antarmuka kaku membuat sebagian pelajar kelelahan?
             </h2>
             <p className="mt-4 text-base sm:text-lg text-text-secondary leading-relaxed">
-              Paragraf panjang yang rapat memicu kelelahan visual. Bandingkan bagaimana materi yang sama disajikan pada web biasa dan pada kanvas adaptif TemanAkses.
+              Paragraf panjang yang rapat memicu kelelahan visual. Bandingkan bagaimana materi yang sama disajikan pada web biasa dan pada kanvas adaptif EduBridge.
             </p>
           </div>
 
@@ -530,7 +530,7 @@ export function LandingPage() {
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
-              Ruang Baca TemanAkses
+              Ruang Baca EduBridge
             </button>
           </div>
 
@@ -558,7 +558,7 @@ export function LandingPage() {
                     </div>
                     <p className="text-lg sm:text-xl leading-[1.8] tracking-[0.015em] text-text-primary">
                       {renderBionicSample(
-                        'TemanAkses memecah materi menjadi subtema terukur. Kamu bebas mengaktifkan penebalan awal kata (Bionic), mendengarkan narasi suara Bahasa Indonesia, atau membaca poin inti lebih dulu.'
+                        'EduBridge memecah materi menjadi subtema terukur. Kamu bebas mengaktifkan penebalan awal kata (Bionic), mendengarkan narasi suara Bahasa Indonesia, atau membaca poin inti lebih dulu.'
                       )}
                     </p>
                   </div>
@@ -795,7 +795,7 @@ export function LandingPage() {
                     Teknologi pendidikan yang menghormati cara manusia belajar.
                   </h2>
                   <p className="mt-4 text-slate-300 leading-relaxed max-w-xl text-base sm:text-lg">
-                    TemanAkses tidak meminta label atau diagnosis pengguna. Setiap orang bebas meracik ruang bacanya sendiri, menguji pemahaman tanpa rasa takut salah, dan menyimpan portofolio belajarnya.
+                    EduBridge tidak meminta label atau diagnosis pengguna. Setiap orang bebas meracik ruang bacanya sendiri, menguji pemahaman tanpa rasa takut salah, dan menyimpan portofolio belajarnya.
                   </p>
                   <div className="mt-8 flex flex-wrap items-center gap-4">
                     <Link
@@ -846,9 +846,9 @@ export function LandingPage() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-900 text-white font-extrabold text-xs">
-                TA
+                EB
               </div>
-              <span className="font-extrabold text-text-primary tracking-tight">TemanAkses</span>
+              <span className="font-extrabold text-text-primary tracking-tight">EduBridge</span>
               <span className="text-xs text-text-muted">Platform Pembelajaran Adaptif Inklusif</span>
             </div>
             <div className="flex flex-wrap items-center gap-6 text-xs font-semibold text-text-secondary">

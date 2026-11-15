@@ -770,7 +770,7 @@ export function StudyCompanion() {
 
       const topCategories = learningCategories.slice(0, 5).map((c) => c.title)
       return {
-        heading: 'Panduan Topik TemanAkses',
+        heading: 'Panduan Topik EduBridge',
         summary:
           'Aku siap merangkum 25+ modul pembelajaran inklusif atau mengatur preferensi ruang bacamu.',
         bullets: [
@@ -1021,11 +1021,11 @@ export function StudyCompanion() {
       setIsOpen((prev) => !prev)
     }
 
-    window.addEventListener('temanakses:ask-aksa', handleAskEvent)
-    window.addEventListener('temanakses:toggle-aksa', handleToggleEvent)
+    window.addEventListener('edubridge:ask-aksa', handleAskEvent)
+    window.addEventListener('edubridge:toggle-aksa', handleToggleEvent)
     return () => {
-      window.removeEventListener('temanakses:ask-aksa', handleAskEvent)
-      window.removeEventListener('temanakses:toggle-aksa', handleToggleEvent)
+      window.removeEventListener('edubridge:ask-aksa', handleAskEvent)
+      window.removeEventListener('edubridge:toggle-aksa', handleToggleEvent)
     }
   }, [submitPromptText])
 

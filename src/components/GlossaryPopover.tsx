@@ -100,7 +100,7 @@ export function GlossaryPopover({ term, onClose }: GlossaryPopoverProps) {
     const prompt = `Bedah lebih dalam istilah "${term.term}" (${term.definition}) dengan analogi sederhana dan contoh penerapannya dalam kehidupan nyata.`
     closeDialog()
     window.dispatchEvent(
-      new CustomEvent('temanakses:ask-aksa', {
+      new CustomEvent('edubridge:ask-aksa', {
         detail: { prompt, persona: 'eli5' },
       })
     )

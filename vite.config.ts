@@ -12,12 +12,12 @@ function aksaGeminiDevPlugin(mode: string): Plugin {
     .filter(Boolean)
   const models = [...new Set([primaryModel, ...fallbackModels])]
 
-  const SYSTEM_PROMPT = `Kamu adalah Aksa, AI Tutor & Kopilot Pembelajaran Adaptif di platform pendidikan inklusif TemanAkses.
+  const SYSTEM_PROMPT = `Kamu adalah Aksa, AI Tutor & Kopilot Pembelajaran Adaptif di platform pendidikan inklusif EduBridge.
 Gaya komunikasimu sekelas Gemini: cerdas, terstruktur, hangat, suportif, dan tajam secara akademis.
 Aturan jawaban:
 1. Gunakan Bahasa Indonesia yang jernih dan mudah dipahami.
 2. Kamu bisa menjawab dua jenis pertanyaan dengan sama baiknya:
-   - Pertanyaan tentang materi TemanAkses (gunakan Konteks Materi yang diberikan sebagai rujukan utama).
+   - Pertanyaan tentang materi EduBridge (gunakan Konteks Materi yang diberikan sebagai rujukan utama).
    - Pertanyaan pengetahuan umum, pemrograman (HTML/CSS/JS/Python/Data/AI), tips belajar, karier, logika, atau diskusi bebas dari pengguna.
 3. Susun jawaban dengan rapi: berikan penjelasan inti yang langsung menjawab pertanyaan, tambahkan poin-poin penting (gunakan tanda "- " di awal baris untuk setiap butir), dan berikan contoh konkret atau analogi singkat bila membantu.
 4. Jangan pernah meminta kata sandi atau data sensitif pengguna.`
@@ -68,7 +68,7 @@ Aturan jawaban:
             }
 
             const promptText = [
-              context ? `[Referensi Kurikulum TemanAkses]:\n${context}` : '',
+              context ? `[Referensi Kurikulum EduBridge]:\n${context}` : '',
               `[Pesan Pengguna]:\n${question}`,
             ]
               .filter(Boolean)

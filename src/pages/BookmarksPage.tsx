@@ -79,7 +79,7 @@ export function BookmarksPage() {
 
   const exportStudySummaryMarkdown = () => {
     const lines: string[] = [
-      `# Ringkasan Belajar & Catatan TemanAkses`,
+      `# Ringkasan Belajar & Catatan EduBridge`,
       `Pelajar: ${userName || 'Mahasiswa Inklusif'}`,
       `Tanggal Ekspor: ${new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })}`,
       ``,
@@ -98,7 +98,7 @@ export function BookmarksPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `Catatan-TemanAkses-${new Date().toISOString().slice(0, 10)}.md`
+    a.download = `Catatan-EduBridge-${new Date().toISOString().slice(0, 10)}.md`
     a.click()
     URL.revokeObjectURL(url)
   }

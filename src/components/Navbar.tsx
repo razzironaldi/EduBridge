@@ -51,12 +51,12 @@ export function Navbar() {
         aria-label="Navigasi utama"
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2.5" aria-label="TemanAkses Beranda">
+          <Link to="/" className="flex items-center gap-2.5" aria-label="EduBridge Beranda">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-700 text-white font-extrabold text-sm shadow-soft">
-              TA
+              EB
             </div>
             <span className="font-extrabold text-lg text-text-primary tracking-tight hidden sm:inline">
-              TemanAkses
+              EduBridge
             </span>
           </Link>
 

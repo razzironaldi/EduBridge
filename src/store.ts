@@ -108,6 +108,14 @@ const legacyFontSizes: Record<LegacyTextSize, number> = {
   'extra-large': 22,
 }
 
+// Migrasi data mulus dari nama storage lama ke edubridge-storage
+if (typeof window !== 'undefined' && !localStorage.getItem('edubridge-storage')) {
+  const legacyStorage = localStorage.getItem('temanakses-storage')
+  if (legacyStorage) {
+    localStorage.setItem('edubridge-storage', legacyStorage)
+  }
+}
+
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
@@ -219,7 +227,7 @@ export const useStore = create<AppState>()(
         })),
     }),
     {
-      name: 'temanakses-storage',
+      name: 'edubridge-storage',
       version: 4,
       partialize: ({
         isQuizActive: _isQuizActive,

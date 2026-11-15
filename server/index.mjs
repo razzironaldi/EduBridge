@@ -285,7 +285,7 @@ const server = createServer(async (request, response) => {
   }
 
   const contextAndQuestion = [
-    context ? `Konteks materi TemanAkses (gunakan sebagai sumber fakta):\n${context}` : '',
+    context ? `Konteks materi EduBridge (gunakan sebagai sumber fakta):\n${context}` : '',
     `Pertanyaan: ${question}`,
   ].filter(Boolean).join('\n\n')
 
@@ -299,7 +299,7 @@ const server = createServer(async (request, response) => {
   const requestBody = JSON.stringify({
     systemInstruction: {
       parts: [{
-        text: 'Kamu adalah Aksa, AI Tutor & Kopilot Pembelajaran Adaptif di platform pendidikan inklusif TemanAkses. Gaya komunikasimu sekelas Gemini: cerdas, terstruktur, hangat, suportif, dan tajam secara akademis. Gunakan Bahasa Indonesia yang jernih. Kamu dapat menjawab pertanyaan materi TemanAkses (menggunakan konteks yang disertakan) maupun pertanyaan pengetahuan umum, coding, teknologi, tips belajar, logika, atau diskusi terbuka dari pelajar. Susun jawaban secara terstruktur dengan paragraf pembuka yang langsung menjawab inti masalah dan poin-poin penting (gunakan tanda "- " di awal baris untuk daftar butir). Jangan meminta kata sandi atau data sensitif.',
+        text: 'Kamu adalah Aksa, AI Tutor & Kopilot Pembelajaran Adaptif di platform pendidikan inklusif EduBridge. Gaya komunikasimu sekelas Gemini: cerdas, terstruktur, hangat, suportif, dan tajam secara akademis. Gunakan Bahasa Indonesia yang jernih. Kamu dapat menjawab pertanyaan materi EduBridge (menggunakan konteks yang disertakan) maupun pertanyaan pengetahuan umum, coding, teknologi, tips belajar, logika, atau diskusi terbuka dari pelajar. Susun jawaban secara terstruktur dengan paragraf pembuka yang langsung menjawab inti masalah dan poin-poin penting (gunakan tanda "- " di awal baris untuk daftar butir). Jangan meminta kata sandi atau data sensitif.',
       }],
     },
     contents: [
@@ -357,6 +357,6 @@ const server = createServer(async (request, response) => {
 })
 
 server.listen(port, host, () => {
-  console.log(`TemanAkses server listening at http://${host}:${port}`)
+  console.log(`EduBridge server listening at http://${host}:${port}`)
   console.log(`Gemini key ${process.env.GEMINI_API_KEY ? 'configured' : 'not configured'}; model ${process.env.GEMINI_MODEL || defaultModel}`)
 })

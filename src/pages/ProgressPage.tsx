@@ -109,16 +109,16 @@ export function ProgressPage() {
                 Diberikan Kepada Pelajar Mandiri
               </p>
               <h3 className="mt-1 text-2xl font-extrabold text-text-primary tracking-tight">
-                {userName || 'Pelajar Inklusif TemanAkses'}
+                {userName || 'Pelajar Inklusif EduBridge'}
               </h3>
               <p className="mt-2 text-sm text-text-secondary leading-relaxed">
-                Telah menyelesaikan <strong className="text-text-primary">{completedCount} subtema</strong> ({overallPct}% kurikulum) dan berlatih pada <strong className="text-text-primary">{quizAnsweredCount} evaluasi pemahaman</strong> di platform pembelajaran adaptif TemanAkses.
+                Telah menyelesaikan <strong className="text-text-primary">{completedCount} subtema</strong> ({overallPct}% kurikulum) dan berlatih pada <strong className="text-text-primary">{quizAnsweredCount} evaluasi pemahaman</strong> di platform pembelajaran adaptif EduBridge.
               </p>
             </div>
 
             <div className="mt-6 border-t border-border pt-4 flex items-center justify-between text-xs text-text-muted">
               <span>Standar Universal Design for Learning</span>
-              <span className="font-mono font-bold text-primary-800">TA-2026-VERIFIED</span>
+              <span className="font-mono font-bold text-primary-800">EB-2026-VERIFIED</span>
             </div>
           </div>
         </div>

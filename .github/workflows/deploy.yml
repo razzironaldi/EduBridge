@@ -1,4 +1,4 @@
-name: Deploy TemanAkses to GitHub Pages
+name: Deploy EduBridge to GitHub Pages
 
 on:
   push:

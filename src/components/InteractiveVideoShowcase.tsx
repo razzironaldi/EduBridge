@@ -509,7 +509,7 @@ function TourStage({
                 : 'bg-white/5 text-slate-400'
             }`}
           >
-            temanakses.app/materials/udl-praktis
+            edubridge.app/materials/udl-praktis
           </span>
         </div>
         <div key={chapterId} className="route-transition relative flex-1 overflow-hidden p-5 sm:p-8">
@@ -642,7 +642,7 @@ export function InteractiveVideoShowcase() {
                 isHighContrast ? 'text-black' : isSoft ? 'text-[#f5f1e8]' : 'text-white'
               }`}
             >
-              Tur Interaktif Ruang Baca TemanAkses.
+              Tur Interaktif Ruang Baca EduBridge.
             </h2>
             <p
               className={`text-sm sm:text-base font-normal leading-relaxed max-w-2xl ${

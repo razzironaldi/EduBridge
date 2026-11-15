@@ -1,14 +1,14 @@
-# TemanAkses — Ruang Belajar Web Adaptif & Inklusif
+# EduBridge — Ruang Belajar Web Adaptif & Inklusif
 
 > Platform pembelajaran digital berbahasa Indonesia berstandar **CAST Universal Design for Learning (UDL)** dan **WCAG 2.1 AAA** yang menyesuaikan tampilan baca, kontras visual, navigasi, suara, dan ritme evaluasi dengan kebutuhan setiap pelajar.
 
-Dokumen proposal lengkap tersedia pada berkas **[Proposal_Proyek_TemanAkses_GEMATIK_Teknokrat.pdf](Proposal_Proyek_TemanAkses_GEMATIK_Teknokrat.pdf)**.
+Dokumen proposal lengkap tersedia pada berkas **[Proposal_Proyek_EduBridge_GEMATIK_Teknokrat.pdf](Proposal_Proyek_EduBridge_GEMATIK_Teknokrat.pdf)**.
 
 ---
 
 ## Konteks Kompetisi & Implementasi SDGs
 
-**TemanAkses** dirancang dan dikembangkan sebagai karya orisinal untuk **GEMATIK Teknokrat — Kompetisi Desain & Pengembangan Website** dengan fokus implementasi:
+**EduBridge** dirancang dan dikembangkan sebagai karya orisinal untuk **GEMATIK Teknokrat — Kompetisi Desain & Pengembangan Website** dengan fokus implementasi:
 - **SDG Tujuan 4 (Pendidikan Berkualitas — Target 4.5 & 4.a):** Menjamin akses materi pembelajaran teknologi dan literasi digital yang setara bagi pelajar dengan variasi pemrosesan bacaan (disleksia, ADHD, kelelahan fokus) maupun keterbatasan penglihatan ringan hingga sedang (*low vision*).
 - **SDG Tujuan 10 (Berkurangnya Kesenjangan — Target 10.2):** Menghapus hambatan biaya dan perangkat melalui arsitektur web ringan berbasis penyimpanan lokal (*local-first*) yang langsung aktif di peramban tanpa paksaan registrasi akun.
 
@@ -31,7 +31,7 @@ Dokumen proposal lengkap tersedia pada berkas **[Proposal_Proyek_TemanAkses_GEMA
 5. **Kuis Dua Mode & Penjadwalan Ulang Otomatis (*Spaced Repetition*):**
    - **Mode Santai** (tanpa hitung mundur, dilengkapi petunjuk bertahap) dan **Mode Tantangan** (20 detik/soal) dengan jadwal latihan ulang otomatis (`+1 hari` hingga `14 hari`).
 6. **Portofolio Belajar, Sertifikat & Pindah Perangkat (`/profile` & `/bookmarks`):**
-   - Cetak sertifikat penyelesaian (`TA-UDL`), unduh kompilasi catatan dalam format Markdown (`.md`) / PDF, serta ekspor/impor cadangan progres dalam format `.json`.
+   - Cetak sertifikat penyelesaian (`EB-UDL`), unduh kompilasi catatan dalam format Markdown (`.md`) / PDF, serta ekspor/impor cadangan progres dalam format `.json`.
 
 ---
 
@@ -72,7 +72,7 @@ npm start
 ## Struktur Direktori Utama
 
 ```text
-temanakses/
+edubridge/
 ├── public/                                              # Aset ikon & favicon
 ├── server/
 │   └── index.mjs                                        # Server produksi & proxy aman Gemini API
@@ -82,7 +82,7 @@ temanakses/
 │   ├── pages/                                           # 8 halaman rute aplikasi utama
 │   ├── App.tsx                                          # Konfigurasi rute & pengamat aksesibilitas
 │   └── store.ts                                         # Manajemen state lokal Zustand (v4)
-├── Proposal_Proyek_TemanAkses_GEMATIK_Teknokrat.pdf     # Dokumen Proposal Resmi GEMATIK Teknokrat
+├── Proposal_Proyek_EduBridge_GEMATIK_Teknokrat.pdf      # Dokumen Proposal Resmi GEMATIK Teknokrat
 ├── package.json
 ├── railway.json
 └── vite.config.ts
@@ -90,7 +90,7 @@ temanakses/
 
 ---
 
-## Tim Pengusul (Tim Inovasi TemanAkses)
+## Tim Pengusul (Tim Inovasi EduBridge)
 
 - **Razzi Ronaldi** — *Ketua Tim / System Architecture & Full-Stack Engineer*
 - **Yandri Utama** — *Anggota Tim / UI/UX Accessibility & UDL Curriculum Researcher*

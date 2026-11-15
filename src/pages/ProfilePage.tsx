@@ -53,14 +53,14 @@ export function ProfilePage() {
         ? 'Praktisi Pembelajaran Adaptif'
         : completedCount >= 1
           ? 'Penjelajah Inklusif Aktif'
-          : 'Inisiator TemanAkses'
+          : 'Inisiator EduBridge'
 
-  const certId = `TA-UDL-${(userName || 'PELAJAR').slice(0, 4).toUpperCase()}-${new Date().getFullYear()}`
+  const certId = `EB-UDL-${(userName || 'PELAJAR').slice(0, 4).toUpperCase()}-${new Date().getFullYear()}`
 
   // Ekspor Transkrip Catatan & Portofolio Belajar (.md)
   const handleExportTranscriptMarkdown = () => {
     const lines: string[] = [
-      `# Transkrip Portofolio Belajar & Catatan TemanAkses`,
+      `# Transkrip Portofolio Belajar & Catatan EduBridge`,
       `ID Sertifikat: ${certId}`,
       `Nama Pelajar: ${userName || 'Mahasiswa Inklusif'}`,
       `Tingkat Kompetensi: ${badgeTier}`,
@@ -89,7 +89,7 @@ export function ProfilePage() {
         : ['Belum ada catatan tersimpan.']),
       ``,
       `---`,
-      `*Dokumen ini dibuat otomatis oleh TemanAkses — Platform Pembelajaran Adaptif Berstandar UDL.*`,
+      `*Dokumen ini dibuat otomatis oleh EduBridge — Platform Pembelajaran Adaptif Berstandar UDL.*`,
     ]
 
     const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' })
@@ -103,7 +103,7 @@ export function ProfilePage() {
 
   // Backup Data Mandiri Local-First (.json)
   const handleExportBackupJson = () => {
-    const rawStorage = localStorage.getItem('temanakses-storage')
+    const rawStorage = localStorage.getItem('edubridge-storage') || localStorage.getItem('temanakses-storage')
     let payload
     try {
       payload = rawStorage ? JSON.parse(rawStorage) : null
@@ -137,7 +137,7 @@ export function ProfilePage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `Backup-TemanAkses-${(userName || 'Pelajar').replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `Backup-EduBridge-${(userName || 'Pelajar').replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -159,7 +159,7 @@ export function ProfilePage() {
 
         // Normalisasi format Zustand persist
         const normalized = parsed.state ? parsed : { state: parsed, version: 4 }
-        localStorage.setItem('temanakses-storage', JSON.stringify(normalized))
+        localStorage.setItem('edubridge-storage', JSON.stringify(normalized))
         setImportStatus('Data berhasil dipulihkan! Memuat ulang profil...')
         setTimeout(() => window.location.reload(), 650)
       } catch {
@@ -360,7 +360,7 @@ export function ProfilePage() {
                 Portabilitas Data Mandiri (Backup & Restore JSON)
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-text-secondary">
-                TemanAkses menjaga privasimu secara <em>local-first</em>. Unduh cadangan progres, kuis Spaced Repetition, dan catatanmu untuk dipindahkan ke laptop lain kapan saja tanpa internet server.
+                EduBridge menjaga privasimu secara <em>local-first</em>. Unduh cadangan progres, kuis Spaced Repetition, dan catatanmu untuk dipindahkan ke laptop lain kapan saja tanpa internet server.
               </p>
               {importStatus && (
                 <p className="mt-2 text-xs font-bold text-primary-800" role="status">
