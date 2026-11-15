@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect, Suspense, lazy } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { StudyCompanion } from './components/StudyCompanion'
+import { useStore } from './store'
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })))
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })))
@@ -38,7 +40,9 @@ function ScrollRevealObserver() {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     function observeTargets() {
-      const targets = document.querySelectorAll<HTMLElement>('[data-scroll-reveal]:not(.is-revealed)')
+      const targets = document.querySelectorAll<HTMLElement>(
+        '[data-scroll-reveal]:not(.is-revealed), [data-reveal-item]:not(.is-revealed)'
+      )
 
       if (reducedMotion || !('IntersectionObserver' in window)) {
         targets.forEach((target) => target.classList.add('is-revealed'))
@@ -47,13 +51,27 @@ function ScrollRevealObserver() {
 
       if (targets.length === 0) return undefined
 
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return
-          entry.target.classList.add('is-revealed')
-          observer.unobserve(entry.target)
-        })
-      }, { threshold: 0.12, rootMargin: '0px 0px -5% 0px' })
+      // Auto-stagger sibling items inside each parent container
+      const parentCounters = new WeakMap<Element, number>()
+      targets.forEach((el) => {
+        if (el.hasAttribute('data-reveal-item') && !el.style.getPropertyValue('--stagger-idx')) {
+          const parent = el.parentElement || document.body
+          const idx = parentCounters.get(parent) ?? 0
+          el.style.setProperty('--stagger-idx', String(idx))
+          parentCounters.set(parent, idx + 1)
+        }
+      })
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return
+            entry.target.classList.add('is-revealed')
+            observer.unobserve(entry.target)
+          })
+        },
+        { threshold: 0.08, rootMargin: '0px 0px -4% 0px' }
+      )
 
       targets.forEach((target) => observer.observe(target))
       return observer
@@ -72,7 +90,9 @@ function ScrollRevealObserver() {
     scheduleRevealCheck()
 
     const mutationObserver = new MutationObserver(() => {
-      const unrevealed = document.querySelectorAll<HTMLElement>('[data-scroll-reveal]:not(.is-revealed)')
+      const unrevealed = document.querySelectorAll<HTMLElement>(
+        '[data-scroll-reveal]:not(.is-revealed), [data-reveal-item]:not(.is-revealed)'
+      )
       if (unrevealed.length > 0) {
         scheduleRevealCheck()
       }
@@ -114,11 +134,14 @@ function RouteContent() {
 }
 
 export default function App() {
+  const isQuizActive = useStore((state) => state.isQuizActive)
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ScrollToTop />
       <ScrollRevealObserver />
       <RouteContent />
+      <StudyCompanion key={isQuizActive ? 'quiz-active' : 'quiz-inactive'} />
     </BrowserRouter>
   )
 }

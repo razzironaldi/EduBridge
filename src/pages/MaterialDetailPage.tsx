@@ -9,6 +9,10 @@ import {
   CaretDown,
   CaretUp,
   ListChecks,
+  Sparkle,
+  SlidersHorizontal,
+  NotePencil,
+  Command,
 } from '@phosphor-icons/react'
 import { Button } from '../components/Button'
 import { Badge } from '../components/Badge'
@@ -37,6 +41,8 @@ export function MaterialDetailPage() {
   const [showModes, setShowModes] = useState(false)
   const [selectedGlossaryTerm, setSelectedGlossaryTerm] = useState<GlossaryTerm | null>(null)
   const [audioHighlight, setAudioHighlight] = useState<(AudioHighlightRange & { source: string }) | null>(null)
+  const [shortcutToast, setShortcutToast] = useState<string | null>(null)
+  const toastTimeoutRef = useRef<number | null>(null)
   const articleRef = useRef<HTMLElement>(null)
   const {
     learningModes,
@@ -47,6 +53,12 @@ export function MaterialDetailPage() {
     toggleLessonComplete,
     toggleBookmark,
     accessLesson,
+    bionicReadingEnabled,
+    setBionicReadingEnabled,
+    readingGuideEnabled,
+    setReadingGuideEnabled,
+    lessonNotes,
+    setLessonNote,
   } = useStore()
 
   const section = material?.sections[activeSection]
@@ -54,9 +66,24 @@ export function MaterialDetailPage() {
     ? requestedReviewId ?? undefined
     : undefined
 
+  // Pastikan URL selalu memiliki parameter ?section= agar sinkron dengan Aksa AI & riwayat
+  useEffect(() => {
+    if (material && !searchParams.get('section') && material.sections[0]) {
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.set('section', material.sections[0].id)
+      setSearchParams(nextParams, { replace: true })
+    }
+  }, [material, searchParams, setSearchParams])
+
   useEffect(() => {
     if (section) accessLesson(section.id)
   }, [section, accessLesson])
+
+  const triggerToast = (message: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+    setShortcutToast(message)
+    toastTimeoutRef.current = window.setTimeout(() => setShortcutToast(null), 2200)
+  }
 
   const selectSection = (index: number) => {
     if (!material) return
@@ -75,6 +102,64 @@ export function MaterialDetailPage() {
     }
   }
 
+  // Zero-Mouse Keyboard Shortcuts: Alt + Arrows, Alt + B, Alt + R, Alt + S
+  useEffect(() => {
+    if (!material || !section) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
+      if (!event.altKey) return
+
+      if (event.code === 'KeyB') {
+        event.preventDefault()
+        const nextState = !bionicReadingEnabled
+        setBionicReadingEnabled(nextState)
+        triggerToast(nextState ? '✨ Bionic Reading Diaktifkan (Alt + B)' : 'Bionic Reading Dinonaktifkan (Alt + B)')
+      } else if (event.code === 'KeyR') {
+        event.preventDefault()
+        const nextState = !readingGuideEnabled
+        setReadingGuideEnabled(nextState)
+        triggerToast(nextState ? '📏 Penggaris Fokus 60fps Aktif (Alt + R)' : 'Penggaris Fokus Dimatikan (Alt + R)')
+      } else if (event.code === 'KeyS') {
+        event.preventDefault()
+        toggleLessonComplete(section.id)
+        const willComplete = !lessonProgress[section.id]?.completed
+        triggerToast(willComplete ? '✅ Bab Ditandai Selesai (Alt + S)' : '↩️ Status Selesai Dibatalkan (Alt + S)')
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        if (activeSection < material.sections.length - 1) {
+          selectSection(activeSection + 1)
+          triggerToast(`➡️ Menuju Bab ${activeSection + 2}: ${material.sections[activeSection + 1].title}`)
+        } else {
+          triggerToast('Sudah di bab terakhir')
+        }
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        if (activeSection > 0) {
+          selectSection(activeSection - 1)
+          triggerToast(`⬅️ Kembali ke Bab ${activeSection}: ${material.sections[activeSection - 1].title}`)
+        } else {
+          triggerToast('Sudah di bab pertama')
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+    }
+  }, [
+    material,
+    section,
+    activeSection,
+    bionicReadingEnabled,
+    readingGuideEnabled,
+    lessonProgress,
+    setBionicReadingEnabled,
+    setReadingGuideEnabled,
+    toggleLessonComplete,
+  ])
+
   if (!material || !section) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
@@ -92,6 +177,8 @@ export function MaterialDetailPage() {
   const isBookmarked = sectionProgress?.bookmarked ?? false
   const doneSections = material.sections.filter((s) => lessonProgress[s.id]?.completed).length
   const overallPct = Math.round((doneSections / material.sections.length) * 100)
+  const legacyNote = material ? lessonNotes[material.id] : undefined
+  const showLegacy = activeSection === 0 && !lessonNotes[section.id] && !!legacyNote
 
   const isFocus = learningModes.includes('focus')
   const isSimple = learningModes.includes('simple')
@@ -128,16 +215,47 @@ export function MaterialDetailPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Link
-          to="/materials"
-          className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors"
+      {/* Toast Notifikasi Pintasan Zero-Mouse */}
+      {shortcutToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-full border border-primary-400 bg-slate-950/95 px-5 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition-all animate-fade-in flex items-center gap-2"
         >
-          <ArrowLeft size={16} />
-          Materi
-        </Link>
-        <span className="text-text-muted">/</span>
-        <span className="text-sm text-text-primary font-medium truncate">{material.title}</span>
+          <Command size={14} className="text-primary-300" />
+          <span>{shortcutToast}</span>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <Link
+            to="/materials"
+            className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Materi
+          </Link>
+          <span className="text-text-muted">/</span>
+          <span className="text-sm text-text-primary font-medium truncate">{material.title}</span>
+        </div>
+
+        {/* HUD Zero-Mouse Keyboard Shortcuts */}
+        <div className="hidden md:flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-3.5 py-1.5 text-[11px] text-text-muted shadow-soft">
+          <span className="flex items-center gap-1 font-bold text-primary-800">
+            <Command size={13} weight="bold" />
+            <span>Zero-Mouse:</span>
+          </span>
+          <span className="flex items-center gap-1.5 font-mono">
+            <span><kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">Alt</kbd>+<kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">←/→</kbd> Bab</span>
+            <span className="text-border">·</span>
+            <span><kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">Alt</kbd>+<kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">B</kbd> Bionic</span>
+            <span className="text-border">·</span>
+            <span><kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">Alt</kbd>+<kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">R</kbd> Penggaris</span>
+            <span className="text-border">·</span>
+            <span><kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">Alt</kbd>+<kbd className="rounded bg-surface px-1.5 py-0.5 border border-border text-[10px] font-bold">S</kbd> Selesai</span>
+          </span>
+        </div>
       </div>
 
       <details data-scroll-reveal className="mb-6 rounded-xl border border-border bg-surface">
@@ -225,28 +343,64 @@ export function MaterialDetailPage() {
             '--reader-letter-spacing': `${letterSpacing}em`,
           } as CSSProperties}
         >
-          <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
-            <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="double-bezel">
+            <div className="double-bezel-inner p-6 sm:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6 pb-4 border-b border-border">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-text-primary">{section.title}</h1>
-                <div className="flex items-center gap-3 mt-2 text-sm text-text-muted">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight">{section.title}</h1>
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs sm:text-sm text-text-muted">
                   <span className="flex items-center gap-1"><Clock size={14} /> {section.duration} menit</span>
                   <span>Bagian {activeSection + 1}/{material.sections.length}</span>
+                  <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-800">
+                    {material.glossary.length} istilah interaktif
+                  </span>
                 </div>
               </div>
-              <button
-                onClick={() => toggleBookmark(section.id)}
-                className={cn(
-                  'flex h-9 w-9 items-center justify-center rounded-lg transition-colors cursor-pointer',
-                  isBookmarked
-                    ? 'bg-accent-100 text-accent-600'
-                    : 'bg-surface-muted text-text-muted hover:text-text-secondary'
-                )}
-                aria-label={isBookmarked ? 'Hapus penanda' : 'Tandai'}
-                aria-pressed={isBookmarked}
-              >
-                <BookmarkSimple size={20} weight={isBookmarked ? 'fill' : 'regular'} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBionicReadingEnabled(!bionicReadingEnabled)}
+                  aria-pressed={bionicReadingEnabled}
+                  className={cn(
+                    'inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors cursor-pointer',
+                    bionicReadingEnabled
+                      ? 'border-primary-600 bg-primary-50 text-primary-800'
+                      : 'border-border bg-surface-elevated text-text-secondary hover:bg-surface-muted'
+                  )}
+                  title="Bionic Reading: tebalkan awal kata"
+                >
+                  <Sparkle size={14} weight={bionicReadingEnabled ? 'fill' : 'regular'} className="text-primary-600" />
+                  <span>Bionic</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReadingGuideEnabled(!readingGuideEnabled)}
+                  aria-pressed={readingGuideEnabled}
+                  className={cn(
+                    'inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors cursor-pointer',
+                    readingGuideEnabled
+                      ? 'border-primary-600 bg-primary-50 text-primary-800'
+                      : 'border-border bg-surface-elevated text-text-secondary hover:bg-surface-muted'
+                  )}
+                  title="Penggaris Fokus Baca"
+                >
+                  <SlidersHorizontal size={14} weight={readingGuideEnabled ? 'bold' : 'regular'} className="text-primary-600" />
+                  <span className="hidden sm:inline">Penggaris</span>
+                </button>
+                <button
+                  onClick={() => toggleBookmark(section.id)}
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-xl transition-colors cursor-pointer border',
+                    isBookmarked
+                      ? 'border-accent-300 bg-accent-100 text-accent-700'
+                      : 'border-border bg-surface-elevated text-text-muted hover:text-text-secondary'
+                  )}
+                  aria-label={isBookmarked ? 'Hapus penanda' : 'Tandai'}
+                  aria-pressed={isBookmarked}
+                >
+                  <BookmarkSimple size={19} weight={isBookmarked ? 'fill' : 'regular'} />
+                </button>
+              </div>
             </div>
 
             {isAudio && (
@@ -326,6 +480,29 @@ export function MaterialDetailPage() {
               )}
             </div>
 
+            <div className="mt-8 rounded-2xl border border-border bg-surface-elevated p-4 sm:p-5">
+              <label htmlFor={`note-${section.id}`} className="flex items-center justify-between gap-2 text-sm font-bold text-text-primary">
+                <span className="flex items-center gap-2">
+                  <NotePencil size={18} weight="bold" className="text-primary-600" />
+                  Catatan Refleksi Pribadi
+                </span>
+                <span className="text-xs font-medium text-text-muted">Tersimpan otomatis di perangkatmu</span>
+              </label>
+              <textarea
+                id={`note-${section.id}`}
+                rows={3}
+                value={showLegacy ? legacyNote : (lessonNotes[section.id] ?? '')}
+                onChange={(e) => {
+                  setLessonNote(section.id, e.target.value)
+                  if (showLegacy) {
+                    setLessonNote(material.id, '')
+                  }
+                }}
+                placeholder="Tulis poin kunci versi bahasamu sendiri atau hal yang ingin kamu tanyakan ke Aksa..."
+                className="mt-2.5 w-full rounded-xl border border-border bg-surface p-3 text-sm text-text-primary placeholder:text-text-muted focus:border-primary-600 focus:outline-none focus:ring-1 focus:ring-primary-600"
+              />
+            </div>
+
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-8 pt-6 border-t border-border">
               <Button
                 onClick={() => toggleLessonComplete(section.id)}
@@ -355,6 +532,26 @@ export function MaterialDetailPage() {
               )}
             </div>
 
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-surface-muted/60 px-3.5 py-2 text-[11px] text-text-secondary">
+              <span className="font-bold text-text-primary">Pintasan Keyboard (Zero-Mouse):</span>
+              <span className="inline-flex items-center gap-1">
+                <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold">Alt + B</kbd>
+                Bionic
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold">Alt + R</kbd>
+                Penggaris
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold">Alt + S</kbd>
+                Tandai Selesai
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold">Alt + ←/→</kbd>
+                Pindah Bagian
+              </span>
+            </div>
+
             {activeSection === material.sections.length - 1 && (
               <QuizSection
                 key={`${material.id}-${reviewQuestionId ?? 'all-questions'}`}
@@ -362,6 +559,7 @@ export function MaterialDetailPage() {
                 reviewQuestionId={reviewQuestionId}
               />
             )}
+            </div>
           </div>
         </article>
       </div>

@@ -90,7 +90,7 @@ export function AudioPlayer({ text, onHighlightChange, className }: AudioPlayerP
         charIndex = sentenceEnd + 1 // +1 untuk spasi
 
         setTimeout(() => {
-          if (utteranceRef.current === u && playing) {
+          if (utteranceRef.current === u) {
             onHighlightChange?.({ start: sentenceStart, end: sentenceEnd })
           }
         }, i * sentenceDuration)
@@ -106,7 +106,7 @@ export function AudioPlayer({ text, onHighlightChange, className }: AudioPlayerP
       setPaused(false)
       setError('Audio gagal diputar. Coba lagi atau baca materinya.')
     }
-  }, [fallbackMessage, onHighlightChange, rate, speechSupported, text, supportsBoundary, playing])
+  }, [fallbackMessage, onHighlightChange, rate, speechSupported, text, supportsBoundary])
 
   const togglePause = useCallback(() => {
     try {

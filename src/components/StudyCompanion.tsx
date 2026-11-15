@@ -1,8 +1,27 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { ChatCircleDots, Eye, PaperPlaneTilt, X } from '@phosphor-icons/react'
-import { useLocation } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  ArrowsInSimple,
+  ArrowsOutSimple,
+  BookOpen,
+  ChatCircleDots,
+  CheckCircle,
+  Eye,
+  GraduationCap,
+  Lightning,
+  Microphone,
+  MicrophoneSlash,
+  NotePencil,
+  PaperPlaneTilt,
+  SlidersHorizontal,
+  Sparkle,
+  SpeakerHigh,
+  Stop,
+  Trash,
+  X,
+} from '@phosphor-icons/react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { learningCategories, materials, type Material } from '../data/materials'
-import { useStore } from '../store'
+import { useStore, type ReadingTheme } from '../store'
 
 /* VisualViewport hook untuk handle virtual keyboard di mobile */
 function useVisualViewport() {
@@ -11,10 +30,11 @@ function useVisualViewport() {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) return
     const vp = window.visualViewport
-    const update = () => setViewport({
-      height: vp.height,
-      offsetTop: vp.offsetTop,
-    })
+    const update = () =>
+      setViewport({
+        height: vp.height,
+        offsetTop: vp.offsetTop,
+      })
     update()
     vp.addEventListener('resize', update)
     vp.addEventListener('scroll', update)
@@ -27,174 +47,339 @@ function useVisualViewport() {
   return viewport
 }
 
+type TutorPersona = 'eli5' | 'socratic' | 'flashcard' | 'step'
+type WorkspaceTab = 'chat' | 'quiz' | 'controls'
+
+interface Citation {
+  title: string
+  route: string
+  category?: string
+}
+
+interface SocraticChallenge {
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+  hint: string
+}
+
 interface Message {
+  id: string
   role: 'companion' | 'learner'
-  text: string
+  heading?: string
+  summary: string
+  bullets?: string[]
+  analogy?: string
+  persona?: TutorPersona
+  actionBadge?: string
+  citations?: Citation[]
+  challenge?: SocraticChallenge
+  selectedOption?: number
+  canSaveToNote?: boolean
+  savedToNote?: boolean
+}
+
+const PERSONA_CONFIG: Record<
+  TutorPersona,
+  { label: string; short: string; desc: string; promptPrefix: string }
+> = {
+  eli5: {
+    label: 'Analogi Sederhana',
+    short: 'Analogi',
+    desc: 'Bahasa sehari-hari & perumpamaan konkret',
+    promptPrefix:
+      '[Mode Pedagogi: Analogi Sederhana / ELI5. Jelaskan singkat maksimal 3 kalimat dengan perumpamaan sehari-hari.]',
+  },
+  flashcard: {
+    label: 'Poin Inti Cepat',
+    short: '3 Poin Inti',
+    desc: '3 butir kunci padat untuk pemindaian cepat',
+    promptPrefix:
+      '[Mode Pedagogi: Flashcard Poin Inti. Rangkum menjadi tepat 3 poin kunci paling esensial.]',
+  },
+  step: {
+    label: 'Langkah Praktis',
+    short: 'Langkah 1-2-3',
+    desc: 'Urutan kerja sistematis yang langsung bisa dipraktikkan',
+    promptPrefix:
+      '[Mode Pedagogi: Langkah Praktis. Susun jawaban menjadi langkah berurutan 1, 2, 3 yang ringkas.]',
+  },
+  socratic: {
+    label: 'Uji Pemahaman',
+    short: 'Uji Kuis',
+    desc: 'Penjelasan ringkas disertai tantangan soal mikro',
+    promptPrefix:
+      '[Mode Pedagogi: Socratic Tutor. Berikan penjelasan singkat lalu ajukan 1 pertanyaan logika.]',
+  },
 }
 
 const openingMessage: Message = {
+  id: 'opening-1',
   role: 'companion',
-  text: 'Hai! Aku Aksa, teman belajarmu. Saat AI aktif, pertanyaan dan konteks materi dikirim ke Gemini untuk dijawab. Jangan kirim kata sandi atau informasi pribadi.',
+  heading: 'Halo! Aku Aksa, Kopilot Belajarmu.',
+  summary:
+    'Pilih topik materi atau ketik pertanyaan di bawah. Kamu juga bisa berpindah ke tab Uji Kuis atau Kontrol Cepat di bagian atas.',
+  bullets: [
+    'Tanya istilah glosarium atau ringkasan bab secara instan',
+    'Gunakan tombol mikrofon untuk bertanya lewat suara (id-ID)',
+    'Simpan rangkuman penting langsung ke Catatan Belajarmu',
+  ],
 }
 
 const stopWords = new Set([
-  'apa', 'apakah', 'aku', 'bagaimana', 'boleh', 'dan', 'dari', 'di', 'dong', 'itu',
-  'jelaskan', 'kenapa', 'mana', 'materi', 'maksud', 'mengapa', 'yang', 'untuk', 'pada',
-  'dengan', 'ini', 'tolong', 'tentang', 'cara', 'saya', 'ya', 'adalah', 'arti',
+  'apa',
+  'apakah',
+  'aku',
+  'bagaimana',
+  'boleh',
+  'dan',
+  'dari',
+  'di',
+  'dong',
+  'itu',
+  'jelaskan',
+  'kenapa',
+  'mana',
+  'materi',
+  'maksud',
+  'mengapa',
+  'yang',
+  'untuk',
+  'pada',
+  'dengan',
+  'ini',
+  'tolong',
+  'tentang',
+  'cara',
+  'saya',
+  'ya',
+  'adalah',
+  'arti',
+  'buatkan',
+  'coba',
+  'kasih',
+  'berikan',
 ])
 
 function normalize(text: string) {
-  return text.toLocaleLowerCase('id-ID').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s-]/g, ' ')
+  return text
+    .toLocaleLowerCase('id-ID')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, ' ')
 }
 
 function getKeywords(text: string) {
-  return normalize(text).split(/\s+/).filter((word) => word.length > 2 && !stopWords.has(word))
+  return normalize(text)
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !stopWords.has(word))
 }
 
-function findBestMatch<T extends { searchText: string }>(question: string, entries: T[]) {
+interface ScoredSection {
+  material: Material
+  categoryTitle: string
+  section: Material['sections'][number]
+  score: number
+}
+
+function rankSections(question: string): ScoredSection[] {
   const keywords = getKeywords(question)
-  if (keywords.length === 0) return undefined
+  if (keywords.length === 0) return []
 
-  let bestEntry: T | undefined
-  let bestScore = 0
+  const results: ScoredSection[] = []
 
-  for (const entry of entries) {
-    const searchableText = normalize(entry.searchText)
-    const score = keywords.reduce((total, keyword) => total + (searchableText.includes(keyword) ? 1 : 0), 0)
-    if (score > bestScore) {
-      bestEntry = entry
-      bestScore = score
+  for (const material of materials) {
+    const category = learningCategories.find((c) => c.id === material.categoryId)
+    for (const section of material.sections) {
+      const titleNorm = normalize(`${material.title} ${section.title}`)
+      const summaryNorm = normalize(`${material.description} ${section.simpleSummary}`)
+      const bodyNorm = normalize([...section.keyPoints, ...section.paragraphs].join(' '))
+
+      let score = 0
+      for (const kw of keywords) {
+        if (titleNorm.includes(kw)) score += 3.2
+        if (summaryNorm.includes(kw)) score += 2.0
+        if (bodyNorm.includes(kw)) score += 1.1
+      }
+
+      if (score > 0) {
+        results.push({
+          material,
+          categoryTitle: category?.title ?? material.category,
+          section,
+          score,
+        })
+      }
     }
   }
 
-  return bestScore > 0 ? bestEntry : undefined
+  return results.sort((a, b) => b.score - a.score)
 }
 
 function createCatalogContext(question: string) {
-  const keywords = getKeywords(question)
-  const matches = learningCategories.flatMap((category) =>
-    materials
-      .filter((material) => material.categoryId === category.id)
-      .flatMap((material) => material.sections.map((section) => {
-        const content = normalize([
-          category.title,
-          material.title,
-          material.description,
-          section.title,
-          section.simpleSummary,
-          ...section.paragraphs,
-          ...section.keyPoints,
-        ].join(' '))
-        const score = keywords.filter((keyword) => content.includes(keyword)).length
-        return { category: category.title, theme: material.title, section, score }
-      }))
-  ).filter((entry) => entry.score > 0).sort((left, right) => right.score - left.score).slice(0, 3)
+  const topMatches = rankSections(question).slice(0, 3)
 
-  if (matches.length === 0) {
-    return learningCategories.map((category) => {
-      const themes = materials.filter((material) => material.categoryId === category.id)
-      return `${category.title}: ${themes.map((theme) => theme.title).join(', ')}`
-    }).join('\n')
+  if (topMatches.length === 0) {
+    return learningCategories
+      .map((category) => {
+        const themes = materials.filter((material) => material.categoryId === category.id)
+        return `${category.title}: ${themes.map((theme) => theme.title).join(', ')}`
+      })
+      .join('\n')
   }
 
-  return JSON.stringify(matches.map(({ category, theme, section }) => ({
-    category,
-    theme,
-    subtopic: section.title,
-    summary: section.simpleSummary,
-    details: section.paragraphs,
-    keyPoints: section.keyPoints,
-  })))
-}
-
-function createAnswer(question: string, activeMaterial: Material | undefined, activeSectionId: string | null) {
-  const normalizedQuestion = normalize(question)
-  const section = activeMaterial?.sections.find((item) => item.id === activeSectionId)
-  const allGlossary = materials.flatMap((material) => material.glossary.map((term) => ({ ...term, materialTitle: material.title })))
-
-  if (/ringkas|jelaskan materi ini|materi yang sedang/.test(normalizedQuestion)) {
-    const targetSection = section ?? activeMaterial?.sections[0]
-    if (targetSection) return `${targetSection.title}: ${targetSection.simpleSummary}`
-    return 'Buka salah satu materi terlebih dahulu, lalu tanyakan “Ringkas materi ini”. Aku akan mengambil ringkasannya dari halaman tersebut.'
-  }
-
-  if (/cara pakai|cara menggunakan|fitur temanakses|gunakan temanakses/.test(normalizedQuestion)) {
-    return 'Kamu bisa mengatur tampilan di Pengaturan, mendengarkan materi dengan Audio Reader, menyimpan bagian lewat Bookmark, lalu mencoba Mini Quiz. Aku bisa membantu menjelaskan isi materi yang tersedia di aplikasi.'
-  }
-
-  const exactTerm = allGlossary.find((term) => normalizedQuestion.includes(normalize(term.term)))
-  const glossaryMatch = exactTerm ?? findBestMatch(question, allGlossary.map((term) => ({ ...term, searchText: `${term.term} ${term.definition} ${term.example}` })))
-  if (glossaryMatch && (exactTerm || getKeywords(question).length > 0)) {
-    return `${glossaryMatch.term} berarti ${glossaryMatch.definition} Contohnya: ${glossaryMatch.example}${activeMaterial?.title !== glossaryMatch.materialTitle ? ` Istilah ini ada di materi ${glossaryMatch.materialTitle}.` : ''}`
-  }
-
-  const quizMatch = findBestMatch(question, materials.flatMap((material) => material.quiz.map((item) => ({ ...item, materialTitle: material.title, searchText: `${item.question} ${item.options.join(' ')} ${item.explanation}` }))))
-  if (quizMatch && /kuis|quiz|soal|jawab|mengapa|kenapa|benar|salah/.test(normalizedQuestion)) {
-    return `${quizMatch.explanation} Petunjuknya: ${quizMatch.hint}`
-  }
-
-  const sections = materials.flatMap((material) => material.sections.map((item) => ({ ...item, materialTitle: material.title, searchText: `${item.title} ${item.simpleSummary} ${item.keyPoints.join(' ')} ${item.paragraphs.join(' ')}` })))
-  const sectionMatch = findBestMatch(question, sections)
-  if (sectionMatch) {
-    return `${sectionMatch.title}: ${sectionMatch.simpleSummary} Materi ini ada di ${sectionMatch.materialTitle}.`
-  }
-
-  const categorySuggestions = learningCategories.map((category) => category.title).join(', ')
-  return `Aku belum menemukan jawabannya di materi TemanAkses. Coba tanyakan tentang ${categorySuggestions}.`
-}
-
-function getAiSetupMessage() {
-  return import.meta.env.DEV
-    ? 'Untuk mengaktifkan AI, isi GEMINI_API_KEY di .env.local lalu jalankan server API.'
-    : 'AI belum diaktifkan di server deployment ini. Pengelola perlu mengatur GEMINI_API_KEY pada environment server.'
-}
-
-function CompanionAvatar({ listening = false }: { listening?: boolean }) {
-  return (
-    <span className={`companion-avatar${listening ? ' is-listening' : ''}`} aria-hidden="true">
-      <span className="companion-eye" />
-      <span className="companion-eye" />
-      <span className="companion-mouth" />
-    </span>
+  return JSON.stringify(
+    topMatches.map(({ categoryTitle, material, section }) => ({
+      category: categoryTitle,
+      theme: material.title,
+      subtopic: section.title,
+      summary: section.simpleSummary,
+      details: section.paragraphs,
+      keyPoints: section.keyPoints,
+    }))
   )
+}
+
+function buildStructuredResponse(
+  persona: TutorPersona,
+  title: string,
+  summary: string,
+  keyPoints: string[],
+  customAnalogy?: string
+): Pick<Message, 'heading' | 'summary' | 'bullets' | 'analogy'> {
+  if (persona === 'flashcard') {
+    return {
+      heading: title,
+      summary,
+      bullets: keyPoints.slice(0, 3),
+    }
+  }
+
+  if (persona === 'step') {
+    return {
+      heading: `Langkah Praktis · ${title}`,
+      summary: `Ikuti urutan sistematis berikut untuk menerapkan konsep ini:`,
+      bullets: [
+        `Pahami inti: ${summary}`,
+        ...keyPoints.slice(0, 2).map((pt) => `Terapkan: ${pt}`),
+      ],
+    }
+  }
+
+  if (persona === 'socratic') {
+    return {
+      heading: `Uji Logika · ${title}`,
+      summary,
+      bullets: keyPoints.slice(0, 2),
+    }
+  }
+
+  return {
+    heading: title,
+    summary,
+    analogy:
+      customAnalogy ??
+      `Analogi: Bayangkan konsep ini seperti menyediakan jalur landai dan penunjuk suara di gedung kampus agar setiap mahasiswa tiba di tujuan tanpa hambatan.`,
+    bullets: keyPoints.slice(0, 2),
+  }
+}
+
+interface AgentExecutionResult {
+  handled: boolean
+  heading?: string
+  summary: string
+  actionBadge?: string
+  citations?: Citation[]
 }
 
 export function StudyCompanion() {
   const { pathname, search } = useLocation()
+  const navigate = useNavigate()
+
   const isQuizActive = useStore((state) => state.isQuizActive)
+  const bionicReadingEnabled = useStore((state) => state.bionicReadingEnabled)
+  const setBionicReadingEnabled = useStore((state) => state.setBionicReadingEnabled)
+  const readingGuideEnabled = useStore((state) => state.readingGuideEnabled)
+  const setReadingGuideEnabled = useStore((state) => state.setReadingGuideEnabled)
+  const pageTheme = useStore((state) => state.pageTheme)
+  const setPageTheme = useStore((state) => state.setPageTheme)
+  const fontSize = useStore((state) => state.fontSize)
+  const setFontSize = useStore((state) => state.setFontSize)
+  const learningModes = useStore((state) => state.learningModes)
+  const toggleLearningMode = useStore((state) => state.toggleLearningMode)
+  const lessonNotes = useStore((state) => state.lessonNotes)
+  const setLessonNote = useStore((state) => state.setLessonNote)
+
   const [isOpen, setIsOpen] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('chat')
+  const [persona, setPersona] = useState<TutorPersona>('eli5')
   const [draft, setDraft] = useState('')
   const [messages, setMessages] = useState<Message[]>([openingMessage])
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null)
   const [isSending, setIsSending] = useState(false)
+  const [isListeningMic, setIsListeningMic] = useState(false)
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null)
+  const [selectedQuote, setSelectedQuote] = useState<string>('')
+  const [quizIndex, setQuizIndex] = useState(0)
+  const [quizPicked, setQuizPicked] = useState<number | null>(null)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const messageListRef = useRef<HTMLDivElement>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
 
-  /* VisualViewport untuk handle virtual keyboard di mobile */
   const visualViewport = useVisualViewport()
 
   const activeMaterial = useMemo(() => {
     const materialId = pathname.match(/^\/materials\/([^/]+)/)?.[1]
     return materials.find((material) => material.id === materialId)
   }, [pathname])
+
   const activeSectionId = new URLSearchParams(search).get('section')
+
+  // Daftar kuis untuk tab "Uji Kuis"
+  const activeQuizPool = useMemo(() => {
+    if (activeMaterial && activeMaterial.quiz.length > 0) {
+      return activeMaterial.quiz.map((q) => ({ ...q, materialTitle: activeMaterial.title }))
+    }
+    return materials.slice(0, 6).flatMap((m) =>
+      m.quiz.slice(0, 1).map((q) => ({ ...q, materialTitle: m.title }))
+    )
+  }, [activeMaterial])
+
+  const currentTabQuiz = activeQuizPool[quizIndex % activeQuizPool.length]
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection()?.toString().trim() ?? ''
+      if (sel.length >= 12 && sel.length <= 220) {
+        setSelectedQuote(sel)
+      } else if (sel.length === 0) {
+        setSelectedQuote('')
+      }
+    }
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
-    inputRef.current?.focus()
+    if (activeTab === 'chat') inputRef.current?.focus()
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen])
+  }, [isOpen, activeTab])
 
   useEffect(() => {
     if (!isOpen) return
     const controller = new AbortController()
     fetch('/api/companion/status', { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((status: { configured?: boolean }) => setAiConfigured(Boolean(status.configured)))
       .catch(() => {
         if (!controller.signal.aborted) setAiConfigured(false)
@@ -203,80 +388,646 @@ export function StudyCompanion() {
   }, [isOpen])
 
   useEffect(() => {
-    messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, isOpen])
+    if (activeTab === 'chat') {
+      messageListRef.current?.scrollTo({
+        top: messageListRef.current.scrollHeight,
+        behavior: 'smooth',
+      })
+    }
+  }, [messages, isOpen, activeTab])
 
-  function appendCompanionMessage(text: string) {
-    setMessages((current) => {
-      const nextMessages: Message[] = [...current, { role: 'companion', text }]
-      return nextMessages.slice(-13)
-    })
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [])
+
+  const messageToPlainText = (msg: Message) => {
+    return [msg.heading, msg.summary, ...(msg.bullets ?? []), msg.analogy]
+      .filter(Boolean)
+      .join('. ')
   }
 
-  async function submitQuestion(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const question = draft.trim()
-    if (!question || isSending) return
+  const speakMessage = useCallback(
+    (msg: Message) => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+      window.speechSynthesis.cancel()
+      if (speakingMessageId === msg.id) {
+        setSpeakingMessageId(null)
+        return
+      }
+      const utterance = new SpeechSynthesisUtterance(messageToPlainText(msg))
+      utterance.lang = 'id-ID'
+      utterance.rate = 0.96
+      utterance.onend = () => setSpeakingMessageId(null)
+      utterance.onerror = () => setSpeakingMessageId(null)
+      setSpeakingMessageId(msg.id)
+      window.speechSynthesis.speak(utterance)
+    },
+    [speakingMessageId]
+  )
 
-    const contextSection = activeMaterial?.sections.find((item) => item.id === activeSectionId)
-    const context = activeMaterial
-      ? JSON.stringify({
-          category: activeMaterial.category,
-          material: activeMaterial.title,
-          activeSection: contextSection?.title ?? null,
-          sections: activeMaterial.sections.map((section) => ({
-            title: section.title,
-            summary: section.simpleSummary,
-            keyPoints: section.keyPoints,
-            details: section.paragraphs,
-          })),
-          glossary: activeMaterial.glossary,
-        })
-      : createCatalogContext(question)
-    const history = messages.slice(1).slice(-8).map((message) => ({
-      role: message.role === 'learner' ? 'user' : 'assistant',
-      content: message.text,
-    }))
-    setMessages((current) => {
-      const nextMessages: Message[] = [
-        ...current,
-        { role: 'learner', text: question },
-      ]
-      return nextMessages.slice(-13)
-    })
-    setDraft('')
-
-    if (aiConfigured === false) {
-      appendCompanionMessage(`Mode lokal: ${createAnswer(question, activeMaterial, activeSectionId)} ${getAiSetupMessage()}`)
+  const toggleVoiceDictation = useCallback(() => {
+    if (isListeningMic) {
+      recognitionRef.current?.stop?.()
+      setIsListeningMic(false)
       return
     }
 
-    setIsSending(true)
-
-    try {
-      const response = await fetch('/api/companion', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question, context, history }),
-      })
-      const result = await response.json() as { answer?: string; code?: string; error?: string }
-
-      if (response.ok && result.answer) {
-        setAiConfigured(true)
-        appendCompanionMessage(result.answer)
-      } else if (result.code === 'AI_NOT_CONFIGURED') {
-        setAiConfigured(false)
-        appendCompanionMessage(`Mode lokal: ${createAnswer(question, activeMaterial, activeSectionId)} ${getAiSetupMessage()}`)
-      } else {
-        appendCompanionMessage(`${result.error ?? 'Aksa belum dapat menjawab sekarang.'} ${createAnswer(question, activeMaterial, activeSectionId)}`)
-      }
-    } catch {
-      setAiConfigured(false)
-      appendCompanionMessage(`Server AI belum tersambung. Mode lokal: ${createAnswer(question, activeMaterial, activeSectionId)}`)
-    } finally {
-      setIsSending(false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as unknown as Record<string, any>
+    const SpeechRecognitionCtor = w.SpeechRecognition || w.webkitSpeechRecognition
+    if (!SpeechRecognitionCtor) {
+      setMessages((curr) => [
+        ...curr,
+        {
+          id: `mic-unsupported-${Date.now()}`,
+          role: 'companion',
+          heading: 'Dikte Suara Tidak Tersedia',
+          summary:
+            'Browser ini belum mendukung Web Speech API. Silakan ketik pertanyaan atau gunakan tab Kontrol Cepat.',
+        },
+      ])
+      return
     }
+
+    const recognition = new SpeechRecognitionCtor()
+    recognition.lang = 'id-ID'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      const transcript = event?.results?.[0]?.[0]?.transcript ?? ''
+      if (transcript) {
+        setDraft((prev) => (prev ? `${prev} ${transcript}` : transcript))
+      }
+      setIsListeningMic(false)
+    }
+    recognition.onerror = () => setIsListeningMic(false)
+    recognition.onend = () => setIsListeningMic(false)
+
+    recognitionRef.current = recognition
+    setIsListeningMic(true)
+    recognition.start()
+  }, [isListeningMic])
+
+  const executeAgenticCommand = useCallback(
+    (rawQuestion: string): AgentExecutionResult => {
+      const q = normalize(rawQuestion).trim()
+
+      // Hanya jalankan perintah sistem bila memang ada kata kerja perintah eksplisit
+      const hasActionVerb = /^(nyalakan|aktifkan|matikan|nonaktifkan|ubah|ganti|pakai|setel|atur|perbesar|perkecil|buka|pergi ke)\b/.test(
+        q
+      )
+      if (!hasActionVerb) {
+        return { handled: false, summary: '' }
+      }
+
+      if (/\bbionic\b|tebalkan kata|fiksasi kata/.test(q)) {
+        const shouldDisable = /matikan|nonaktif|off|hapus|tutup/.test(q)
+        const nextState = shouldDisable
+          ? false
+          : /nyalakan|aktifkan|on|pakai/.test(q)
+            ? true
+            : !bionicReadingEnabled
+        setBionicReadingEnabled(nextState)
+        return {
+          handled: true,
+          actionBadge: `Bionic Reading ${nextState ? 'Aktif' : 'Nonaktif'}`,
+          heading: nextState ? 'Bionic Reading Diaktifkan' : 'Bionic Reading Dimatikan',
+          summary: nextState
+            ? 'Suku kata awal pada seluruh paragraf materi kini ditebalkan untuk membantu mata memindai baris lebih stabil.'
+            : 'Teks bacaan dikembalikan ke ketebalan reguler.',
+        }
+      }
+
+      if (/penggaris|reading ruler|garis baca|baris fokus/.test(q)) {
+        const shouldDisable = /matikan|nonaktif|off|tutup/.test(q)
+        const nextState = shouldDisable
+          ? false
+          : /nyalakan|aktifkan|on|pakai/.test(q)
+            ? true
+            : !readingGuideEnabled
+        setReadingGuideEnabled(nextState)
+        return {
+          handled: true,
+          actionBadge: `Penggaris Baca ${nextState ? 'Aktif' : 'Nonaktif'}`,
+          heading: nextState ? 'Penggaris Baca 60fps Aktif' : 'Penggaris Baca Dimatikan',
+          summary: nextState
+            ? 'Gerakkan kursor atau sentuh layar untuk menyorot baris bacaan aktif.'
+            : 'Sorotan penggaris baris telah ditutup.',
+        }
+      }
+
+      if (/\b(tema|mode gelap|dark mode|kontras tinggi|high contrast|sepia|mode terang|tema krem)\b/.test(q)) {
+        let targetTheme: ReadingTheme = pageTheme
+        let label = 'Terang'
+        if (/kontras tinggi|high contrast/.test(q)) {
+          targetTheme = 'high-contrast'
+          label = 'Kontras Tinggi (WCAG AAA)'
+        } else if (/gelap|dark|malam/.test(q)) {
+          targetTheme = 'dark'
+          label = 'Gelap Nyaman'
+        } else if (/sepia|lembut|hangat|krem|soft/.test(q)) {
+          targetTheme = 'soft'
+          label = 'Krem Hangat (Sepia)'
+        } else if (/terang|light|normal|putih/.test(q)) {
+          targetTheme = 'light'
+          label = 'Terang Bersih'
+        } else {
+          targetTheme = pageTheme === 'dark' ? 'light' : 'dark'
+          label = targetTheme === 'dark' ? 'Gelap Nyaman' : 'Terang Bersih'
+        }
+        setPageTheme(targetTheme)
+        return {
+          handled: true,
+          actionBadge: `Tema · ${label}`,
+          heading: `Tema Diubah ke ${label}`,
+          summary: 'Seluruh kontras latar dan teks halaman telah disesuaikan secara otomatis.',
+        }
+      }
+
+      if (/perbesar huruf|perbesar teks|huruf besar|ukuran teks|perkecil huruf|perkecil teks/.test(q)) {
+        const shrink = /perkecil|kecilkan/.test(q)
+        const nextSize = shrink ? Math.max(14, fontSize - 2) : Math.min(24, fontSize + 2)
+        setFontSize(nextSize)
+        return {
+          handled: true,
+          actionBadge: `Ukuran Teks · ${nextSize}px`,
+          heading: `Ukuran Huruf Diatur ke ${nextSize}px`,
+          summary: 'Proporsi teks pada ruang baca telah diperbarui.',
+        }
+      }
+
+      if (/mode fokus|fokus tenang|sembunyikan distraksi|calm mode/.test(q)) {
+        const willBeActive = !learningModes.includes('focus')
+        toggleLearningMode('focus')
+        return {
+          handled: true,
+          actionBadge: `Mode Fokus ${willBeActive ? 'Aktif' : 'Nonaktif'}`,
+          heading: willBeActive ? 'Mode Fokus Tenang Aktif' : 'Mode Fokus Tenang Dimatikan',
+          summary: willBeActive
+            ? 'Animasi dekoratif diredam agar kamu bisa berkonsentrasi penuh pada materi.'
+            : 'Tampilan kembali ke mode standar.',
+        }
+      }
+
+      if (/^(buka|pergi ke|navigasi ke|arahkan ke)\s+/.test(q)) {
+        if (/progres|analitik|statistik/.test(q)) {
+          navigate('/progress')
+          return {
+            handled: true,
+            actionBadge: 'Navigasi · Progres',
+            heading: 'Membuka Halaman Progres',
+            summary: 'Menampilkan analitik belajar dan jadwal Spaced Repetition.',
+          }
+        }
+        const matchedMat = rankSections(rawQuestion)[0]?.material
+        if (matchedMat) {
+          navigate(`/materials/${matchedMat.id}`)
+          return {
+            handled: true,
+            actionBadge: `Navigasi · ${matchedMat.category}`,
+            heading: matchedMat.title,
+            summary: `Membuka ruang baca untuk modul "${matchedMat.title}".`,
+            citations: [
+              {
+                title: matchedMat.title,
+                route: `/materials/${matchedMat.id}`,
+                category: matchedMat.category,
+              },
+            ],
+          }
+        }
+      }
+
+      return { handled: false, summary: '' }
+    },
+    [
+      bionicReadingEnabled,
+      fontSize,
+      learningModes,
+      navigate,
+      pageTheme,
+      readingGuideEnabled,
+      setBionicReadingEnabled,
+      setFontSize,
+      setPageTheme,
+      setReadingGuideEnabled,
+      toggleLearningMode,
+    ]
+  )
+
+  const buildLocalIntelligence = useCallback(
+    (
+      question: string,
+      currentPersona: TutorPersona
+    ): Pick<Message, 'heading' | 'summary' | 'bullets' | 'analogy' | 'citations' | 'challenge' | 'canSaveToNote'> => {
+      const normalizedQuestion = normalize(question)
+      const section =
+        activeMaterial?.sections.find((item) => item.id === activeSectionId) ??
+        activeMaterial?.sections[0]
+      const allGlossary = materials.flatMap((material) =>
+        material.glossary.map((term) => ({
+          ...term,
+          materialId: material.id,
+          materialTitle: material.title,
+          categoryTitle: material.category,
+        }))
+      )
+
+      // 1. Jika meminta kuis / uji pemahaman / mode socratic
+      if (
+        currentPersona === 'socratic' ||
+        /uji aku|tes aku|kuis|latihan soal|tantangan/.test(normalizedQuestion)
+      ) {
+        const pool = activeMaterial
+          ? activeMaterial.quiz.map((q) => ({ ...q, mat: activeMaterial }))
+          : materials.flatMap((m) => m.quiz.map((q) => ({ ...q, mat: m })))
+        const rankedQuiz = rankSections(question)[0]?.material
+        const chosenQuizPool = rankedQuiz
+          ? rankedQuiz.quiz.map((q) => ({ ...q, mat: rankedQuiz }))
+          : pool
+        const pick =
+          chosenQuizPool[Math.floor(Math.random() * chosenQuizPool.length)] ?? pool[0]
+
+        if (pick) {
+          const targetSec = pick.mat.sections[0]
+          return {
+            ...buildStructuredResponse(
+              'socratic',
+              pick.mat.title,
+              targetSec?.simpleSummary ?? pick.mat.description,
+              targetSec?.keyPoints ?? []
+            ),
+            citations: [
+              {
+                title: pick.mat.title,
+                route: `/materials/${pick.mat.id}`,
+                category: pick.mat.category,
+              },
+            ],
+            challenge: {
+              question: pick.question,
+              options: pick.options,
+              correctIndex: Math.max(0, pick.options.indexOf(pick.answer)),
+              explanation: pick.explanation,
+              hint: pick.hint,
+            },
+            canSaveToNote: true,
+          }
+        }
+      }
+
+      // 2. Ringkas materi yang sedang dibuka
+      if (/ringkas|jelaskan materi ini|materi yang sedang|poin penting|rangkum/.test(normalizedQuestion)) {
+        if (activeMaterial && section) {
+          return {
+            ...buildStructuredResponse(
+              currentPersona,
+              `${activeMaterial.title} — ${section.title}`,
+              section.simpleSummary,
+              section.keyPoints
+            ),
+            citations: [
+              {
+                title: `${activeMaterial.title} · ${section.title}`,
+                route: `/materials/${activeMaterial.id}?section=${section.id}`,
+                category: activeMaterial.category,
+              },
+            ],
+            canSaveToNote: true,
+          }
+        }
+      }
+
+      // 3. Pencarian Glosarium Presisi
+      const exactTerm = allGlossary.find((term) => normalizedQuestion.includes(normalize(term.term)))
+      if (exactTerm) {
+        return {
+          ...buildStructuredResponse(
+            currentPersona,
+            `Istilah Glosarium · ${exactTerm.term}`,
+            exactTerm.definition,
+            [`Contoh penerapan: ${exactTerm.example}`, `Modul: ${exactTerm.materialTitle}`],
+            `Contoh konkret: ${exactTerm.example}`
+          ),
+          citations: [
+            {
+              title: exactTerm.materialTitle,
+              route: `/materials/${exactTerm.materialId}`,
+              category: exactTerm.categoryTitle,
+            },
+          ],
+          canSaveToNote: true,
+        }
+      }
+
+      // 4. Hybrid BM25-like Section Search
+      const ranked = rankSections(question)
+      if (ranked.length > 0) {
+        const best = ranked[0]
+        const citations: Citation[] = ranked.slice(0, 2).map((item) => ({
+          title: `${item.material.title} · ${item.section.title}`,
+          route: `/materials/${item.material.id}?section=${item.section.id}`,
+          category: item.categoryTitle,
+        }))
+
+        return {
+          ...buildStructuredResponse(
+            currentPersona,
+            `${best.material.title} — ${best.section.title}`,
+            best.section.simpleSummary,
+            best.section.keyPoints
+          ),
+          citations,
+          canSaveToNote: true,
+        }
+      }
+
+      // 5. Fallback Kontekstual jika sedang di dalam halaman materi
+      if (activeMaterial && section) {
+        return {
+          ...buildStructuredResponse(
+            currentPersona,
+            `${activeMaterial.title} — ${section.title}`,
+            section.simpleSummary,
+            section.keyPoints
+          ),
+          citations: [
+            {
+              title: activeMaterial.title,
+              route: `/materials/${activeMaterial.id}`,
+              category: activeMaterial.category,
+            },
+          ],
+          canSaveToNote: true,
+        }
+      }
+
+      const topCategories = learningCategories.slice(0, 5).map((c) => c.title)
+      return {
+        heading: 'Panduan Topik TemanAkses',
+        summary:
+          'Aku siap merangkum 25+ modul pembelajaran inklusif atau mengatur preferensi ruang bacamu.',
+        bullets: [
+          `Rumpun materi: ${topCategories.join(', ')}`,
+          'Ketik "Nyalakan Bionic" atau buka tab Kontrol Cepat untuk mengubah tampilan',
+        ],
+        citations: [
+          { title: 'Buka Katalog Materi', route: '/materials', category: 'Kurikulum' },
+        ],
+        canSaveToNote: false,
+      }
+    },
+    [activeMaterial, activeSectionId]
+  )
+
+  const handleSaveToNote = useCallback(
+    (msg: Message) => {
+      // Prioritaskan section ID dari URL aktif, atau dari route sitasi pesan jika ada
+      const citedSectionId = msg.citations?.[0]?.route
+        ? new URLSearchParams(msg.citations[0].route.split('?')[1] ?? '').get('section')
+        : null
+
+      const targetId =
+        activeSectionId ??
+        citedSectionId ??
+        activeMaterial?.sections[0]?.id ??
+        activeMaterial?.id ??
+        'catatan-umum'
+
+      const existing = lessonNotes[targetId] ?? ''
+      const timestamp = new Date().toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      const bodyLines = [
+        msg.heading ? `### ${msg.heading}` : '',
+        msg.summary,
+        ...(msg.bullets ?? []).map((b) => `- ${b}`),
+      ]
+        .filter(Boolean)
+        .join('\n')
+      const formattedAddition = `[Catatan Aksa · ${timestamp}]\n${bodyLines}`
+      const nextNote = existing ? `${existing}\n\n${formattedAddition}` : formattedAddition
+      setLessonNote(targetId, nextNote)
+
+      // Jika ada catatan lama yang tertinggal di level ID modul, gabungkan agar tidak orphaned
+      if (activeMaterial && targetId !== activeMaterial.id && lessonNotes[activeMaterial.id]) {
+        setLessonNote(targetId, `${lessonNotes[activeMaterial.id]}\n\n${nextNote}`)
+        setLessonNote(activeMaterial.id, '')
+      }
+
+      setMessages((curr) =>
+        curr.map((item) => (item.id === msg.id ? { ...item, savedToNote: true } : item))
+      )
+    },
+    [activeMaterial, activeSectionId, lessonNotes, setLessonNote]
+  )
+
+  const handleAnswerChallenge = useCallback((messageId: string, optionIdx: number) => {
+    setMessages((curr) =>
+      curr.map((item) =>
+        item.id === messageId ? { ...item, selectedOption: optionIdx } : item
+      )
+    )
+  }, [])
+
+  const submitPromptText = useCallback(
+    async (rawQuestion: string, overridePersona?: TutorPersona) => {
+      const question = rawQuestion.trim()
+      if (!question || isSending) return
+
+      setActiveTab('chat')
+      const activePersona = overridePersona ?? persona
+      const learnerMsg: Message = {
+        id: `learner-${Date.now()}`,
+        role: 'learner',
+        summary: question,
+      }
+
+      setMessages((current) => [...current, learnerMsg].slice(-14))
+      setDraft('')
+      setSelectedQuote('')
+
+      const agentResult = executeAgenticCommand(question)
+      if (agentResult.handled) {
+        setMessages((current) =>
+          [
+            ...current,
+            {
+              id: `companion-agent-${Date.now()}`,
+              role: 'companion' as const,
+              heading: agentResult.heading,
+              summary: agentResult.summary,
+              actionBadge: agentResult.actionBadge,
+              citations: agentResult.citations,
+            },
+          ].slice(-14)
+        )
+        return
+      }
+
+      const localResult = buildLocalIntelligence(question, activePersona)
+
+      if (aiConfigured === false) {
+        setMessages((current) =>
+          [
+            ...current,
+            {
+              id: `companion-local-${Date.now()}`,
+              role: 'companion' as const,
+              persona: activePersona,
+              ...localResult,
+            },
+          ].slice(-14)
+        )
+        return
+      }
+
+      setIsSending(true)
+
+      const contextSection = activeMaterial?.sections.find((item) => item.id === activeSectionId)
+      const context = activeMaterial
+        ? JSON.stringify({
+            category: activeMaterial.category,
+            material: activeMaterial.title,
+            activeSection: contextSection?.title ?? null,
+            sections: activeMaterial.sections.map((section) => ({
+              title: section.title,
+              summary: section.simpleSummary,
+              keyPoints: section.keyPoints,
+              details: section.paragraphs,
+            })),
+            glossary: activeMaterial.glossary,
+          })
+        : createCatalogContext(question)
+
+      const history = messages
+        .slice(1)
+        .slice(-6)
+        .map((message) => ({
+          role: message.role === 'learner' ? 'user' : 'assistant',
+          content: message.summary,
+        }))
+
+      const augmentedQuestion = `${PERSONA_CONFIG[activePersona].promptPrefix}\nPertanyaan: ${question}`
+
+      try {
+        const response = await fetch('/api/companion', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ question: augmentedQuestion, context, history }),
+        })
+        const result = (await response.json()) as {
+          answer?: string
+          code?: string
+        }
+
+        if (response.ok && result.answer) {
+          setAiConfigured(true)
+          const cleanRaw = result.answer.replace(/\*\*/g, '').trim()
+          const lines = cleanRaw
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean)
+          const aiBullets = lines
+            .filter((l) => /^[-•*]\s+/.test(l))
+            .map((l) => l.replace(/^[-•*]\s+/, '').trim())
+          const aiParagraphs = lines
+            .filter((l) => !/^[-•*]\s+/.test(l) && !/^#+\s+/.test(l))
+            .join('\n\n')
+          const aiHeadingMatch = lines.find((l) => /^#+\s+/.test(l))?.replace(/^#+\s+/, '')
+
+          setMessages((current) =>
+            [
+              ...current,
+              {
+                id: `companion-ai-${Date.now()}`,
+                role: 'companion' as const,
+                heading: aiHeadingMatch ?? localResult.heading ?? 'Aksa · Gemini Flash',
+                summary: aiParagraphs || cleanRaw,
+                bullets: aiBullets.length > 0 ? aiBullets.slice(0, 5) : undefined,
+                persona: activePersona,
+                citations: localResult.citations,
+                canSaveToNote: true,
+              },
+            ].slice(-14)
+          )
+        } else {
+          if (result.code === 'AI_NOT_CONFIGURED') setAiConfigured(false)
+          setMessages((current) =>
+            [
+              ...current,
+              {
+                id: `companion-fallback-${Date.now()}`,
+                role: 'companion' as const,
+                persona: activePersona,
+                ...localResult,
+              },
+            ].slice(-14)
+          )
+        }
+      } catch {
+        setAiConfigured(false)
+        setMessages((current) =>
+          [
+            ...current,
+            {
+              id: `companion-offline-${Date.now()}`,
+              role: 'companion' as const,
+              persona: activePersona,
+              ...localResult,
+            },
+          ].slice(-14)
+        )
+      } finally {
+        setIsSending(false)
+      }
+    },
+    [
+      activeMaterial,
+      activeSectionId,
+      aiConfigured,
+      buildLocalIntelligence,
+      executeAgenticCommand,
+      isSending,
+      messages,
+      persona,
+    ]
+  )
+
+  function submitQuestion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void submitPromptText(draft)
   }
+
+  useEffect(() => {
+    const handleAskEvent = (event: Event) => {
+      const detail = (event as CustomEvent<{ prompt?: string; persona?: TutorPersona }>).detail
+      setIsVisible(true)
+      setIsOpen(true)
+      setActiveTab('chat')
+      if (detail?.persona) setPersona(detail.persona)
+      if (detail?.prompt) void submitPromptText(detail.prompt, detail.persona)
+    }
+
+    const handleToggleEvent = () => {
+      setIsVisible(true)
+      setIsOpen((prev) => !prev)
+    }
+
+    window.addEventListener('temanakses:ask-aksa', handleAskEvent)
+    window.addEventListener('temanakses:toggle-aksa', handleToggleEvent)
+    return () => {
+      window.removeEventListener('temanakses:ask-aksa', handleAskEvent)
+      window.removeEventListener('temanakses:toggle-aksa', handleToggleEvent)
+    }
+  }, [submitPromptText])
 
   if (isQuizActive) return null
 
@@ -285,112 +1036,643 @@ export function StudyCompanion() {
       <button
         type="button"
         onClick={() => setIsVisible(true)}
-        className="fixed bottom-20 right-3 z-50 inline-flex min-h-11 items-center gap-2 rounded-full border border-primary-700 bg-white px-3 text-sm font-semibold text-primary-900 shadow-elevated hover:bg-primary-50 focus-visible:outline-offset-4 md:bottom-5 md:right-5"
+        className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-50 inline-flex min-h-[44px] items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-xs font-bold text-text-primary shadow-elevated hover:border-primary-600 focus-visible:outline-offset-4 cursor-pointer"
       >
-        <Eye size={17} aria-hidden="true" />
-        Tampilkan Aksa
+        <Eye size={16} aria-hidden="true" className="text-primary-700" />
+        <span>Tampilkan Aksa</span>
       </button>
     )
   }
 
-  /* Gunakan visualViewport untuk positioning yang benar saat keyboard buka di mobile.
-     CSS bottom = jarak dari bawah viewport.
-     - Tanpa keyboard (atau SSR): fallback 84px (5.25rem, di atas bottom nav 64px + gap)
-     - Dengan keyboard: window.innerHeight - (vp.offsetTop + vp.height) = area di bawah visible viewport
-       → bottom = area tersebut + 16px gap agar Aksa duduk tepat di atas keyboard */
-  const keyboardOffset = visualViewport.height > 0
-    ? window.innerHeight - (visualViewport.offsetTop + visualViewport.height)
-    : 0
-  const bottomPosition = keyboardOffset > 10
-    ? keyboardOffset + 16   // keyboard terbuka: posisi di atas keyboard
-    : 84                     // normal: 5.25rem di atas bottom nav
+  const keyboardOffset =
+    visualViewport.height > 0
+      ? window.innerHeight - (visualViewport.offsetTop + visualViewport.height)
+      : 0
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const defaultBottom = isMobile ? 20 : 24
+  const bottomPosition = keyboardOffset > 10 ? keyboardOffset + 16 : defaultBottom
+
+  const quickPrompts = activeMaterial
+    ? [
+        { label: 'Ringkas Bab Ini', prompt: `Ringkas materi ${activeMaterial.title}` },
+        {
+          label: activeMaterial.glossary[0]
+            ? `Arti ${activeMaterial.glossary[0].term}`
+            : 'Poin Kunci',
+          prompt: activeMaterial.glossary[0]
+            ? `Apa arti ${activeMaterial.glossary[0].term}?`
+            : `Apa poin penting ${activeMaterial.title}?`,
+        },
+        { label: 'Langkah Praktis', prompt: `Bagaimana langkah menerapkan ${activeMaterial.title}?`, persona: 'step' as TutorPersona },
+      ]
+    : [
+        { label: 'Apa itu UDL?', prompt: 'Jelaskan apa itu Universal Design for Learning' },
+        { label: 'Tipografi Disleksia', prompt: 'Bagaimana aturan tipografi ramah disleksia?' },
+        { label: 'Struktur Pembaca Layar', prompt: 'Jelaskan struktur semantik pembaca layar' },
+      ]
 
   return (
-    <div className="fixed right-3 z-50 flex flex-col items-end gap-3 md:bottom-5 md:right-5"
-         style={{ bottom: `${bottomPosition}px` }}>
+    <div
+      className="fixed right-3 sm:right-6 z-50 flex flex-col items-end gap-2.5 transition-all duration-300"
+      style={{ bottom: `${bottomPosition}px` }}
+    >
+      {/* Floating Selection Chip saat pengguna memblok kalimat */}
+      {!isOpen && selectedQuote && (
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(true)
+            void submitPromptText(`Jelaskan maksud kutipan ini: "${selectedQuote}"`, 'eli5')
+          }}
+          className="inline-flex min-h-[40px] max-w-xs items-center gap-2 rounded-full border border-primary-300 bg-surface px-3.5 py-1.5 text-xs font-semibold text-primary-900 shadow-card hover:border-primary-600 cursor-pointer"
+        >
+          <Sparkle size={14} weight="fill" aria-hidden="true" className="text-primary-600 shrink-0" />
+          <span className="truncate">Tanya Aksa: &ldquo;{selectedQuote}&rdquo;</span>
+        </button>
+      )}
+
       {isOpen && (
         <section
           id="study-companion-panel"
-          aria-label="Teman belajar Aksa"
-          className="flex max-h-[min(34rem,calc(100dvh-8rem))] w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-elevated md:max-h-[min(36rem,calc(100dvh-2.5rem))]"
+          aria-label="Asisten belajar Aksa"
+          className={`flex flex-col overflow-hidden rounded-3xl border border-border-strong bg-surface shadow-elevated transition-all duration-200 ${
+            isExpanded
+              ? 'h-[min(42rem,calc(100dvh-5rem))] w-[min(32rem,calc(100vw-1.5rem))]'
+              : 'h-[min(35rem,calc(100dvh-7rem))] w-[min(24rem,calc(100vw-1.5rem))] md:h-[min(36rem,calc(100dvh-3rem))]'
+          }`}
         >
-          <header className="flex items-center gap-3 border-b border-border bg-primary-50 px-4 py-3">
-            <CompanionAvatar />
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-bold text-text-primary">Aksa</h2>
-              <p className="text-xs text-text-secondary">
-                {aiConfigured === null ? 'Memeriksa koneksi AI...' : aiConfigured ? 'AI Gemini aktif' : 'Mode lokal'}
-              </p>
+          {/* 1. HEADER BERSIH & TERSTRUKTUR */}
+          <header className="border-b border-border bg-surface-elevated px-4 pt-3.5 pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className={`companion-avatar shrink-0${isListeningMic || isSending ? ' is-listening' : ''}`}
+                  aria-hidden="true"
+                >
+                  <span className="companion-eye" />
+                  <span className="companion-eye" />
+                  <span className="companion-mouth" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-extrabold tracking-tight text-text-primary">
+                      Aksa Copilot
+                    </h2>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-bold text-primary-800 border border-primary-200">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary-600" />
+                      {aiConfigured ? 'Gemini AI' : 'Lokal Pintar'}
+                    </span>
+                  </div>
+                  <p className="truncate text-[11px] text-text-secondary">
+                    {activeMaterial ? activeMaterial.title : 'Pendamping Kurikulum & Aksesibilitas'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded((prev) => !prev)}
+                  className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-muted hover:text-text-primary cursor-pointer"
+                  aria-label={isExpanded ? 'Perkecil panel' : 'Perluas panel'}
+                  title={isExpanded ? 'Perkecil' : 'Perluas'}
+                >
+                  {isExpanded ? <ArrowsInSimple size={16} /> : <ArrowsOutSimple size={16} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMessages([openingMessage])}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-muted hover:text-text-primary cursor-pointer"
+                  aria-label="Reset percakapan"
+                  title="Bersihkan chat"
+                >
+                  <Trash size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsVisible(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-muted hover:text-text-primary cursor-pointer"
+                  aria-label="Sembunyikan tombol Aksa"
+                  title="Sembunyikan"
+                >
+                  <Eye size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-muted hover:text-text-primary cursor-pointer"
+                  aria-label="Tutup panel Aksa"
+                  title="Tutup"
+                >
+                  <X size={17} />
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsVisible(false)}
-              className="flex h-11 w-11 items-center justify-center rounded-lg text-text-secondary hover:bg-white focus-visible:outline-offset-2"
-              aria-label="Sembunyikan Aksa"
-              title="Sembunyikan Aksa"
+
+            {/* Navigasi 3 Tab Utama: Diskusi | Uji Kuis | Kontrol Cepat */}
+            <div
+              className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-surface-muted p-1 border border-border"
+              role="tablist"
+              aria-label="Mode ruang kerja Aksa"
             >
-              <Eye size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="flex h-11 w-11 items-center justify-center rounded-lg text-text-secondary hover:bg-white focus-visible:outline-offset-2"
-              aria-label="Tutup percakapan"
-              title="Tutup percakapan"
-            >
-              <X size={19} />
-            </button>
+              {[
+                { id: 'chat' as WorkspaceTab, label: 'Diskusi', icon: ChatCircleDots },
+                { id: 'quiz' as WorkspaceTab, label: 'Uji Kuis', icon: GraduationCap },
+                { id: 'controls' as WorkspaceTab, label: 'Kontrol', icon: SlidersHorizontal },
+              ].map((t) => {
+                const active = activeTab === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveTab(t.id)}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                      active
+                        ? 'bg-surface text-primary-800 shadow-soft border border-border/80'
+                        : 'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <t.icon size={14} weight={active ? 'fill' : 'regular'} aria-hidden="true" />
+                    <span>{t.label}</span>
+                  </button>
+                )
+              })}
+            </div>
           </header>
 
-          <div ref={messageListRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-4" role="log" aria-live="polite" aria-relevant="additions text">
-            {messages.map((message, index) => (
-              <div key={`${index}-${message.role}`} className={`flex ${message.role === 'learner' ? 'justify-end' : 'justify-start'}`}>
-                <p className={`max-w-[88%] whitespace-pre-wrap rounded-xl px-3 py-2.5 text-sm leading-relaxed ${message.role === 'learner' ? 'bg-primary-700 text-white' : 'border border-border bg-surface-elevated text-text-primary'}`}>
-                  {message.text}
-                </p>
+          {/* 2A. TAB DISKUSI (CHAT TERSTRUKTUR) */}
+          {activeTab === 'chat' && (
+            <>
+              {/* Baris Gaya Penjelasan (4 Pilihan Rapi) */}
+              <div className="flex items-center justify-between gap-2 border-b border-border bg-surface px-3.5 py-2">
+                <span className="text-[11px] font-semibold text-text-muted shrink-0">Gaya:</span>
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                  {(Object.keys(PERSONA_CONFIG) as TutorPersona[]).map((key) => {
+                    const active = persona === key
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setPersona(key)}
+                        aria-pressed={active}
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors cursor-pointer shrink-0 ${
+                          active
+                            ? 'bg-primary-800 text-white'
+                            : 'bg-surface-muted text-text-secondary hover:text-text-primary'
+                        }`}
+                      >
+                        {PERSONA_CONFIG[key].short}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            ))}
-            {isSending && (
-              <p className="max-w-[88%] rounded-xl border border-border bg-surface-elevated px-3 py-2.5 text-sm text-text-secondary" role="status">
-                Aksa sedang menyusun jawaban...
-              </p>
-            )}
-          </div>
 
-          <form onSubmit={submitQuestion} className="flex items-center gap-2 border-t border-border bg-surface px-3 py-3">
-            <label htmlFor="companion-question" className="sr-only">Tulis pertanyaan untuk Aksa</label>
-            <input
-              ref={inputRef}
-              id="companion-question"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Tanyakan tentang materi..."
-              className="h-11 min-w-0 flex-1 rounded-lg border border-border-strong bg-white px-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:border-primary-600"
-              maxLength={300}
-            />
-            <button
-              type="submit"
-              disabled={!draft.trim() || isSending}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-700 text-white transition-colors hover:bg-primary-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-surface-hover disabled:text-text-muted"
-              aria-label="Kirim pertanyaan"
-            >
-              <PaperPlaneTilt size={19} weight="fill" />
-            </button>
-          </form>
+              {/* Area Pesan Terstruktur */}
+              <div
+                ref={messageListRef}
+                className="flex-1 space-y-3 overflow-y-auto px-3.5 py-3.5"
+                role="log"
+                aria-live="polite"
+              >
+                {messages.map((message) => {
+                  const isSpeaking = speakingMessageId === message.id
+                  if (message.role === 'learner') {
+                    return (
+                      <div key={message.id} className="flex justify-end">
+                        <div className="max-w-[85%] rounded-2xl rounded-br-xs bg-primary-800 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-white">
+                          {message.summary}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div key={message.id} className="flex flex-col items-start">
+                      <div className="w-full rounded-2xl border border-border bg-surface-elevated p-3.5 shadow-soft">
+                        {/* Badge Konfirmasi bila baru menjalankan perintah */}
+                        {message.actionBadge && (
+                          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-2.5 py-0.5 text-[10px] font-bold text-primary-800 border border-primary-200">
+                            <Lightning size={11} weight="fill" aria-hidden="true" />
+                            <span>{message.actionBadge}</span>
+                          </div>
+                        )}
+
+                        {/* Judul Jawaban */}
+                        {message.heading && (
+                          <h3 className="text-xs font-extrabold text-text-primary">
+                            {message.heading}
+                          </h3>
+                        )}
+
+                        {/* Paragraf Inti */}
+                        <p className="mt-1 text-xs sm:text-[13px] leading-relaxed text-text-secondary whitespace-pre-wrap">
+                          {message.summary}
+                        </p>
+
+                        {/* Kotak Analogi (jika ada) */}
+                        {message.analogy && (
+                          <div className="mt-2.5 rounded-xl border-l-2 border-primary-600 bg-surface px-3 py-2 text-xs text-text-primary">
+                            {message.analogy}
+                          </div>
+                        )}
+
+                        {/* Daftar Poin Kunci */}
+                        {message.bullets && message.bullets.length > 0 && (
+                          <ul className="mt-2.5 space-y-1.5 border-t border-border/70 pt-2 text-xs text-text-primary">
+                            {message.bullets.map((b) => (
+                              <li key={b} className="flex items-start gap-2">
+                                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary-600 shrink-0" />
+                                <span className="leading-relaxed">{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {/* Kuis Sokratik Inline (jika mode Uji Kuis dipakai di chat) */}
+                        {message.challenge && (
+                          <div className="mt-3 rounded-xl border border-primary-200 bg-surface p-2.5">
+                            <p className="text-xs font-bold text-text-primary">
+                              {message.challenge.question}
+                            </p>
+                            <div className="mt-2 space-y-1">
+                              {message.challenge.options.map((opt, idx) => {
+                                const answered = typeof message.selectedOption === 'number'
+                                const isSelected = message.selectedOption === idx
+                                const isCorrect = message.challenge!.correctIndex === idx
+                                let style =
+                                  'border-border bg-surface-elevated text-text-primary hover:border-primary-500'
+                                if (answered) {
+                                  if (isCorrect)
+                                    style =
+                                      'border-emerald-600 bg-emerald-50 text-emerald-950 font-semibold'
+                                  else if (isSelected)
+                                    style = 'border-amber-500 bg-amber-50 text-amber-950'
+                                }
+                                return (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    disabled={answered}
+                                    onClick={() => handleAnswerChallenge(message.id, idx)}
+                                    className={`w-full rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer ${style}`}
+                                  >
+                                    {opt}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                            {typeof message.selectedOption === 'number' && (
+                              <p className="mt-2 text-[11px] font-medium text-primary-900">
+                                {message.selectedOption === message.challenge.correctIndex
+                                  ? `Benar! ${message.challenge.explanation}`
+                                  : `Petunjuk: ${message.challenge.hint}`}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Baris Bawah Kartu: Sitasi + Tombol Suara & Simpan Catatan */}
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2">
+                          <div className="flex flex-wrap items-center gap-1">
+                            {message.citations?.map((cit) => (
+                              <button
+                                key={cit.route}
+                                type="button"
+                                onClick={() => navigate(cit.route)}
+                                className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-800 hover:bg-primary-100 cursor-pointer"
+                              >
+                                <BookOpen size={11} weight="bold" aria-hidden="true" />
+                                <span className="truncate max-w-[140px]">{cit.title}</span>
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-auto">
+                            <button
+                              type="button"
+                              onClick={() => speakMessage(message)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-text-secondary hover:text-primary-800 cursor-pointer"
+                              aria-label={isSpeaking ? 'Hentikan suara' : 'Dengarkan jawaban'}
+                            >
+                              {isSpeaking ? (
+                                <>
+                                  <Stop size={12} weight="fill" className="text-amber-600" />
+                                  <span>Stop</span>
+                                </>
+                              ) : (
+                                <>
+                                  <SpeakerHigh size={12} weight="bold" />
+                                  <span>Suara</span>
+                                </>
+                              )}
+                            </button>
+
+                            {message.canSaveToNote && (
+                              <button
+                                type="button"
+                                disabled={message.savedToNote}
+                                onClick={() => handleSaveToNote(message)}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-text-secondary hover:text-primary-800 disabled:text-emerald-700 cursor-pointer"
+                              >
+                                {message.savedToNote ? (
+                                  <>
+                                    <CheckCircle size={12} weight="fill" />
+                                    <span>Tersimpan</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <NotePencil size={12} weight="bold" />
+                                    <span>Catat</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {isSending && (
+                  <div
+                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface-elevated px-3 py-2 text-xs text-text-secondary"
+                    role="status"
+                  >
+                    <Sparkle size={13} weight="fill" className="animate-spin text-primary-600" />
+                    <span>Menyusun jawaban terstruktur...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Saran Pertanyaan Kontekstual (1 Baris Bersih) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto border-t border-border bg-surface-elevated/60 px-3 py-2 no-scrollbar">
+                {quickPrompts.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      if (item.persona) setPersona(item.persona)
+                      void submitPromptText(item.prompt, item.persona)
+                    }}
+                    className="shrink-0 rounded-full border border-border-strong bg-surface px-2.5 py-1 text-[11px] font-semibold text-text-secondary hover:border-primary-600 hover:text-primary-800 transition-colors cursor-pointer"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input Bar */}
+              <form
+                onSubmit={submitQuestion}
+                className="flex items-center gap-1.5 border-t border-border bg-surface p-2.5"
+              >
+                <button
+                  type="button"
+                  onClick={toggleVoiceDictation}
+                  aria-pressed={isListeningMic}
+                  aria-label={isListeningMic ? 'Hentikan dikte suara' : 'Dikte suara Bahasa Indonesia'}
+                  title="Dikte Suara (id-ID)"
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors cursor-pointer ${
+                    isListeningMic
+                      ? 'border-amber-500 bg-amber-50 text-amber-800 animate-pulse'
+                      : 'border-border bg-surface-elevated text-text-secondary hover:text-primary-800'
+                  }`}
+                >
+                  {isListeningMic ? (
+                    <MicrophoneSlash size={18} weight="fill" />
+                  ) : (
+                    <Microphone size={18} weight="bold" />
+                  )}
+                </button>
+
+                <label htmlFor="companion-question" className="sr-only">
+                  Tulis pertanyaan untuk Aksa
+                </label>
+                <input
+                  ref={inputRef}
+                  id="companion-question"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  placeholder={isListeningMic ? 'Mendengarkan suaramu...' : 'Tanya materi atau istilah...'}
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-border-strong bg-surface px-3 text-xs sm:text-sm text-text-primary placeholder:text-text-muted focus-visible:border-primary-600"
+                  maxLength={350}
+                />
+                <button
+                  type="submit"
+                  disabled={!draft.trim() || isSending}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-800 text-white hover:bg-primary-900 disabled:opacity-40 cursor-pointer"
+                  aria-label="Kirim pertanyaan"
+                >
+                  <PaperPlaneTilt size={17} weight="fill" />
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* 2B. TAB UJI KUIS (SOCRATIC FLASH-QUIZ TERPISAH & FOKUS) */}
+          {activeTab === 'quiz' && currentTabQuiz && (
+            <div className="flex flex-1 flex-col justify-between overflow-y-auto p-4">
+              <div>
+                <div className="flex items-center justify-between text-xs text-text-muted">
+                  <span className="font-bold uppercase tracking-wider text-primary-700">
+                    {currentTabQuiz.materialTitle}
+                  </span>
+                  <span className="font-mono font-semibold">
+                    Soal {(quizIndex % activeQuizPool.length) + 1} / {activeQuizPool.length}
+                  </span>
+                </div>
+
+                <h3 className="mt-2.5 text-sm font-extrabold leading-snug text-text-primary">
+                  {currentTabQuiz.question}
+                </h3>
+
+                <div className="mt-3.5 space-y-2">
+                  {currentTabQuiz.options.map((opt, idx) => {
+                    const correctIdx = Math.max(0, currentTabQuiz.options.indexOf(currentTabQuiz.answer))
+                    const answered = quizPicked !== null
+                    const isSelected = quizPicked === idx
+                    const isCorrect = correctIdx === idx
+
+                    let cls =
+                      'border-border bg-surface-elevated text-text-primary hover:border-primary-500'
+                    if (answered) {
+                      if (isCorrect)
+                        cls = 'border-emerald-600 bg-emerald-50 text-emerald-950 font-semibold'
+                      else if (isSelected) cls = 'border-amber-500 bg-amber-50 text-amber-950'
+                    }
+
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        disabled={answered}
+                        onClick={() => setQuizPicked(idx)}
+                        className={`w-full rounded-xl border p-3 text-left text-xs leading-relaxed transition-all cursor-pointer ${cls}`}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {quizPicked !== null && (
+                  <div className="mt-3.5 rounded-xl border border-primary-200 bg-primary-50 p-3 text-xs text-primary-950">
+                    <p className="font-bold">
+                      {quizPicked === Math.max(0, currentTabQuiz.options.indexOf(currentTabQuiz.answer))
+                        ? 'Jawaban Tepat!'
+                        : `Petunjuk: ${currentTabQuiz.hint}`}
+                    </p>
+                    <p className="mt-1 leading-relaxed">{currentTabQuiz.explanation}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                <button
+                  type="button"
+                  onClick={() => setQuizPicked(null)}
+                  className="text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer"
+                >
+                  Ulangi Soal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuizPicked(null)
+                    setQuizIndex((i) => i + 1)
+                  }}
+                  className="rounded-full bg-primary-800 px-4 py-2 text-xs font-bold text-white hover:bg-primary-900 cursor-pointer"
+                >
+                  Soal Berikutnya
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 2C. TAB KONTROL CEPAT AKSESIBILITAS (TANPA PERLU KETIK) */}
+          {activeTab === 'controls' && (
+            <div className="flex-1 space-y-4 overflow-y-auto p-4">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-wider text-text-muted">
+                  Alat Bantu Baca Instan
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBionicReadingEnabled(!bionicReadingEnabled)}
+                    aria-pressed={bionicReadingEnabled}
+                    className={`flex flex-col items-start rounded-2xl border p-3 text-left transition-all cursor-pointer ${
+                      bionicReadingEnabled
+                        ? 'border-primary-600 bg-primary-50 text-primary-950'
+                        : 'border-border bg-surface-elevated text-text-primary hover:border-primary-400'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold">Bionic Reading</span>
+                    <span className="mt-0.5 text-[11px] text-text-secondary">
+                      {bionicReadingEnabled ? 'Aktif (Tebal Awal)' : 'Nonaktif'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setReadingGuideEnabled(!readingGuideEnabled)}
+                    aria-pressed={readingGuideEnabled}
+                    className={`flex flex-col items-start rounded-2xl border p-3 text-left transition-all cursor-pointer ${
+                      readingGuideEnabled
+                        ? 'border-primary-600 bg-primary-50 text-primary-950'
+                        : 'border-border bg-surface-elevated text-text-primary hover:border-primary-400'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold">Penggaris Baca</span>
+                    <span className="mt-0.5 text-[11px] text-text-secondary">
+                      {readingGuideEnabled ? 'Aktif (60fps)' : 'Nonaktif'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-text-muted">
+                    Ukuran Huruf Materi
+                  </p>
+                  <span className="font-mono text-xs font-bold text-primary-800">{fontSize}px</span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Kecilkan (-)', size: Math.max(14, fontSize - 2) },
+                    { label: 'Standar (16px)', size: 16 },
+                    { label: 'Besarkan (+)', size: Math.min(24, fontSize + 2) },
+                  ].map((btn) => (
+                    <button
+                      key={btn.label}
+                      type="button"
+                      onClick={() => setFontSize(btn.size)}
+                      className="rounded-xl border border-border bg-surface-elevated py-2 text-xs font-semibold text-text-primary hover:border-primary-500 cursor-pointer"
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-wider text-text-muted">
+                  Tema Kontras Layar
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { id: 'light', label: 'Terang Bersih' },
+                      { id: 'soft', label: 'Krem Sepia' },
+                      { id: 'dark', label: 'Gelap Nyaman' },
+                      { id: 'high-contrast', label: 'Kontras AAA' },
+                    ] as const
+                  ).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setPageTheme(t.id)}
+                      aria-pressed={pageTheme === t.id}
+                      className={`rounded-xl border px-3 py-2 text-left text-xs font-bold transition-all cursor-pointer ${
+                        pageTheme === t.id
+                          ? 'border-primary-600 bg-primary-50 text-primary-950'
+                          : 'border-border bg-surface-elevated text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
+      {/* TOMBOL PELUNCUR RINGKAS */}
       {!isOpen && (
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="companion-launcher flex min-h-14 items-center gap-2 rounded-full border-2 border-primary-800 bg-white py-1.5 pl-2 pr-4 text-sm font-bold text-primary-950 shadow-elevated hover:bg-primary-50 focus-visible:outline-offset-4"
+          className="companion-launcher flex min-h-[52px] items-center gap-2.5 rounded-full border border-border-strong bg-surface py-1.5 pl-2 pr-4 text-sm font-bold text-text-primary shadow-elevated hover:border-primary-600 focus-visible:outline-offset-4 cursor-pointer"
           aria-expanded={false}
-          aria-label="Tanya Aksa, teman belajar"
+          aria-label="Buka Aksa Copilot"
         >
-          <CompanionAvatar listening={draft.length > 0} />
-          <span>Tanya Aksa</span>
-          <ChatCircleDots size={18} weight="bold" aria-hidden="true" />
+          <span
+            className={`companion-avatar${draft.length > 0 ? ' is-listening' : ''}`}
+            aria-hidden="true"
+          >
+            <span className="companion-eye" />
+            <span className="companion-eye" />
+            <span className="companion-mouth" />
+          </span>
+          <span className="text-xs font-extrabold tracking-tight">Tanya Aksa</span>
+          <ChatCircleDots size={18} weight="fill" aria-hidden="true" className="text-primary-700" />
         </button>
       )}
     </div>

@@ -1,116 +1,96 @@
-# TemanAkses
+# TemanAkses — Ruang Belajar Web Adaptif & Inklusif
 
-> Belajar dengan cara yang sesuai denganmu.
+> Platform pembelajaran digital berbahasa Indonesia berstandar **CAST Universal Design for Learning (UDL)** dan **WCAG 2.1 AAA** yang menyesuaikan tampilan baca, kontras visual, navigasi, suara, dan ritme evaluasi dengan kebutuhan setiap pelajar.
 
-README ini memperkenalkan tujuan, fitur, teknologi, dan cara mencoba TemanAkses. Untuk arsitektur, state, keamanan, batasan implementasi, dan panduan pengembangan, lihat [HANDOFF.md](HANDOFF.md).
+Dokumen proposal lengkap tersedia pada berkas **[Proposal_Proyek_TemanAkses_GEMATIK_Teknokrat.pdf](Proposal_Proyek_TemanAkses_GEMATIK_Teknokrat.pdf)**.
 
-## Ringkasan Produk
+---
 
-TemanAkses adalah prototipe platform belajar adaptif berbahasa Indonesia, dibuat untuk **International Innovation 4 Force Batch II 2026 — Web Design Competition** dengan subtema **Human-Centered Technology**.
+## Konteks Kompetisi & Implementasi SDGs
 
-Platform ini membantu pelajar mengatur cara membaca dan berinteraksi dengan materi. Prinsip produknya sejalan dengan pendidikan inklusif dan Universal Design for Learning (UDL): sediakan berbagai cara untuk memahami informasi dan berpartisipasi, tanpa mengasumsikan semua pengguna memiliki kebutuhan yang sama.
+**TemanAkses** dirancang dan dikembangkan sebagai karya orisinal untuk **GEMATIK Teknokrat — Kompetisi Desain & Pengembangan Website** dengan fokus implementasi:
+- **SDG Tujuan 4 (Pendidikan Berkualitas — Target 4.5 & 4.a):** Menjamin akses materi pembelajaran teknologi dan literasi digital yang setara bagi pelajar dengan variasi pemrosesan bacaan (disleksia, ADHD, kelelahan fokus) maupun keterbatasan penglihatan ringan hingga sedang (*low vision*).
+- **SDG Tujuan 10 (Berkurangnya Kesenjangan — Target 10.2):** Menghapus hambatan biaya dan perangkat melalui arsitektur web ringan berbasis penyimpanan lokal (*local-first*) yang langsung aktif di peramban tanpa paksaan registrasi akun.
 
-**Kondisi saat ini:** aplikasi dengan materi statis dan penyimpanan per browser. Belum ada akun atau sinkronisasi perangkat. Server Node menyajikan frontend sekaligus proxy Gemini API untuk deployment prototipe; backend produksi yang hardened belum tersedia.
+---
 
-## Prinsip Produk dan UX
+## Fitur Utama
 
-- Preferensi dapat digabung dan dikendalikan pengguna; jangan mengasumsikan kebutuhan berdasarkan diagnosis atau identitas.
-- Navigasi utama dan jalan keluar Focus Mode harus selalu mudah ditemukan.
-- Materi audio tetap memiliki alternatif teks. Dukungan Web Speech API berbeda antarbrowser/perangkat.
-- Jawaban quiz yang keliru harus memberi petunjuk dan kesempatan mencoba lagi, tanpa timer wajib atau label gagal.
-- Kontrol perlu berlabel jelas, dapat digunakan dengan keyboard, memiliki fokus terlihat, serta target sentuh memadai.
-- Hormati `prefers-reduced-motion`. Jangan menjadikan animasi, warna, atau suara sebagai satu-satunya penanda informasi.
-- Uji perubahan pada desktop dan mobile; jangan mengklaim kepatuhan WCAG penuh tanpa audit terukur.
+1. **Studio Kalibrasi Kognitif (`/onboarding`):**
+   - Simulasi baca interaktif 10 detik dan 4 tombol preset 1-klik (*Ramah Disleksia*, *Fokus Tinggi / ADHD*, *Low Vision WCAG AAA*, dan *Standar Seimbang*).
+2. **Ruang Baca Adaptif & Kendali Keyboard Penuh (`/materials/:id`):**
+   - **Bionic Reading (45% Fixation):** Penebalan otomatis bagian awal kata untuk memandu lompatan fokus mata.
+   - **Penggaris Fokus Baris (*Reading Ruler*):** Menyorot baris aktif dan meredupkan baris di sekitarnya.
+   - **4 Tema Visual Inklusif:** *Terang*, *Tenang/Soft* (krem hangat bebas silau), *Gelap*, dan *Kontras Tinggi WCAG AAA* (rasio kontras 21:1).
+   - **Pintasan Keyboard Tanpa Mouse:** `Alt+B` (Bionic), `Alt+R` (Penggaris Fokus), `Alt+S` (Tandai Selesai), dan `Alt+←/→` (Pindah Subbab).
+3. **Glosarium Interaktif 1-Klik & Pembaca Suara Bahasa Indonesia (`id-ID`):**
+   - Penjelasan istilah kontekstual tanpa berpindah halaman serta sintesis suara Web Speech API dengan pengaturan kecepatan `0.75x`–`1.5x` dan penyorotan kata aktif.
+4. **Pendamping Belajar Kontekstual Aksa AI:**
+   - Terhubung ke Gemini API melalui server proxy Node.js (kunci API terisolasi aman di sisi server) dan dilengkapi pencarian materi lokal otomatis (`src/data/materials.ts`) sehingga tetap dapat memberikan rangkuman dan petunjuk saat luring/tanpa kuota.
+   - Rangkuman diskusi dapat disimpan langsung ke subbab materi yang sedang dibaca (`?section=<id>`).
+5. **Kuis Dua Mode & Penjadwalan Ulang Otomatis (*Spaced Repetition*):**
+   - **Mode Santai** (tanpa hitung mundur, dilengkapi petunjuk bertahap) dan **Mode Tantangan** (20 detik/soal) dengan jadwal latihan ulang otomatis (`+1 hari` hingga `14 hari`).
+6. **Portofolio Belajar, Sertifikat & Pindah Perangkat (`/profile` & `/bookmarks`):**
+   - Cetak sertifikat penyelesaian (`TA-UDL`), unduh kompilasi catatan dalam format Markdown (`.md`) / PDF, serta ekspor/impor cadangan progres dalam format `.json`.
 
-## Fitur yang Sudah Ada
+---
 
-### Preferensi dan akses membaca
+## Arsitektur & Teknologi
 
-- Onboarding meminta nama dan preferensi.
-- Preferensi mode dapat digabung: **Fokus**, **Audio**, dan **Sederhana**. Pilihan **Visual** menghapus mode tambahan dan menjadi tampilan dasar.
-- **Ruang Baca Adaptif / Reading Studio** mengatur ukuran teks, jarak baris, jarak huruf, dan tema Terang, Lembut, atau Kontras Tinggi.
-- Focus Mode menyederhanakan tampilan tanpa menyembunyikan navigasi atau kontrol keluar.
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router DOM v7
+- **State & Penyimpanan Lokal:** Zustand 5 (`localStorage` dengan normalisasi ekspor/impor `.json`)
+- **Aksesibilitas & Audio:** Web Speech API (`speechSynthesis` `id-ID`), dukungan penuh `prefers-reduced-motion`, dan navigasi keyboard global
+- **Server & AI Proxy:** Node.js HTTP Server (`server/index.mjs`) untuk mengisolasi `GEMINI_API_KEY` dari kode klien
 
-### Materi
+---
 
-- Katalog memiliki 8 kategori, 17 tema, dan 52 subtema. Tema dasar yang sudah ada mencakup Dasar Pemrograman Web, Literasi Digital Sehari-hari, dan Strategi Belajar Efektif.
-- Setiap bagian memiliki ringkasan sederhana yang ditulis khusus, poin utama, dan opsi untuk membuka penjelasan lengkap.
-- Audio Reader mendukung putar/jeda/berhenti, kecepatan 0,75×–1,5×, dan highlight kata melalui event batas kata Web Speech API jika tersedia di browser.
-- Kamus istilah inline menyediakan definisi, contoh, dan pengucapan istilah.
-- Katalog materi memiliki pencarian lokal berdasarkan judul, deskripsi, kategori, dan tingkat.
-- Bagian aktif dapat ditautkan melalui `?section=<id>`.
+## Cara Menjalankan Proyek Secara Lokal
 
-### Progres dan latihan
+### Prasyarat
+- **Node.js** (v20 atau lebih baru) dan **npm**
 
-- Progres bagian, waktu terakhir diakses, dan bookmark disimpan lokal.
-- Pusat Bookmark menyediakan pencarian, hapus penanda, serta tautan ke bagian tertentu.
-- **Lanjutkan Belajar** membuka bagian terakhir yang dibaca.
-- Latihan kuis memberi petunjuk positif; mode Santai mengizinkan pengguna mencoba lagi tanpa batas.
-- Review quiz tersimpan per soal. Jawaban salah dijadwalkan setelah 1 hari; jawaban benar pertama setelah 3 hari; jawaban benar setelah sebelumnya salah setelah 2 hari; jawaban benar berturut-turut menggandakan interval sampai maksimum 14 hari.
-- Soal review yang jatuh tempo tampil di dashboard sebagai latihan opsional.
-- Tema dasar memiliki tiga soal; tema inklusif tambahan saat ini memiliki satu soal cek pemahaman.
-- Kuis menyediakan mode Santai tanpa timer dan mode Hard dengan hitung mundur 20 detik per soal. State sesi kuis tidak disimpan ke localStorage.
-- Aksa disembunyikan selama sesi kuis aktif; jawaban salah menampilkan petunjuk dan maskot yang mendukung.
-
-### Teman belajar Aksa
-
-- Karakter animasi Aksa tersedia di halaman belajar dan membuka panel tanya-jawab.
-- Jika server dan `GEMINI_API_KEY` tersedia, pertanyaan dan konteks bagian aktif dikirim ke Gemini untuk dijawab. Jangan masukkan kata sandi atau informasi pribadi.
-- Di luar halaman materi, Aksa mencari subtema yang paling relevan dan mengirim ringkasan serta detailnya sebagai konteks jawaban.
-- Kunci API disimpan di `.env.local` dan hanya dibaca server Node lokal; jangan pernah menaruhnya pada source frontend atau mengunggahnya ke Git.
-- Tanpa koneksi AI, Aksa memakai pencocokan lokal dari ringkasan, istilah, dan kuis di `src/data/materials.ts`.
-- Jawaban AI bisa keliru; Aksa bukan sumber medis atau layanan konseling. Animasi menghormati `prefers-reduced-motion`.
-- Panel dapat ditutup atau disembunyikan. Animasi menghormati `prefers-reduced-motion`.
-
-## Route
-
-| Route | Fungsi |
-|---|---|
-| `/` | Landing page |
-| `/onboarding` | Onboarding preferensi |
-| `/dashboard` | Progres, lanjutkan belajar, review quiz jatuh tempo |
-| `/materials` | Katalog kategori, tema, subtema, filter, dan pencarian |
-| `/materials/:id?section=<id>` | Materi, Audio Reader, glosarium, dan kuis Santai/Hard |
-| `/bookmarks` | Bagian tersimpan dan bacaan terakhir |
-| `/progress` | Ringkasan progres belajar |
-| `/settings` | Preferensi dan Reading Studio |
-| `/profile` | Ringkasan aktivitas dan preferensi |
-
-## Teknologi
-
-- React 19, TypeScript 6, Vite 8
-- Tailwind CSS v4
-- React Router DOM v7
-- Zustand 5 dengan persist localStorage
-- Phosphor Icons
-- Web Speech API bawaan browser
-- Node.js HTTP server untuk proxy Gemini API (lokal dan deployment prototipe)
-
-Penyimpanan progres berlangsung di browser. Server Node melayani frontend dan proxy Gemini dalam satu proses saat deployment prototipe; belum ada akun atau sinkronisasi.
-
-## Mulai Mencoba
-
-Prasyarat: Node.js yang kompatibel dengan Vite 8 dan npm.
-
+### 1. Instalasi Dependensi
 ```bash
 npm install
-npm run dev
 ```
 
-Mode jawaban lokal Aksa tersedia tanpa konfigurasi tambahan. Setup Gemini untuk prototipe dan perintah validasi pengembang dijelaskan di [HANDOFF.md](HANDOFF.md).
+### 2. Menjalankan Mode Pengembangan
+```bash
+npm run dev
+```
+Aplikasi dapat diakses di `http://localhost:5173`.
+*(Opsional)* Apabila ingin mengaktifkan koneksi daring Gemini API pada Aksa AI, salin `.env.example` menjadi `.env.local` dan isi `GEMINI_API_KEY`. Tanpa kunci API, Aksa AI otomatis berjalan menggunakan mesin pencocokan materi lokal (`src/data/materials.ts`).
 
-## Deploy Prototipe
+### 3. Kompilasi & Menjalankan Server Produksi
+```bash
+npm run build
+npm start
+```
 
-Konfigurasi [railway.json](railway.json) menetapkan `npm run build`, `npm start`, dan healthcheck API. Tambahkan `GEMINI_API_KEY` pada Variables service Railway; model default `gemini-3.5-flash-lite` dapat diganti dengan `GEMINI_MODEL`. Tanpa variable key, Aksa hanya memakai jawaban lokal.
+---
 
-## Status
+## Struktur Direktori Utama
 
-TemanAkses adalah prototipe untuk kompetisi desain web. Materi masih statis dan katalog belum memiliki editor konten. Aksa dapat memakai Gemini secara opsional; jawabannya dapat keliru dan pertanyaan dikirim ke Google hanya ketika API key dikonfigurasi. Progres lokal belum tersinkron antarperangkat.
+```text
+temanakses/
+├── public/                                              # Aset ikon & favicon
+├── server/
+│   └── index.mjs                                        # Server produksi & proxy aman Gemini API
+├── src/
+│   ├── components/                                      # Ruang Baca, Studio Kalibrasi, Penggaris Fokus, Aksa AI
+│   ├── data/                                            # Kurikulum 52 subbab, tema inklusif, & konfigurasi mode
+│   ├── pages/                                           # 8 halaman rute aplikasi utama
+│   ├── App.tsx                                          # Konfigurasi rute & pengamat aksesibilitas
+│   └── store.ts                                         # Manajemen state lokal Zustand (v4)
+├── Proposal_Proyek_TemanAkses_GEMATIK_Teknokrat.pdf     # Dokumen Proposal Resmi GEMATIK Teknokrat
+├── package.json
+├── railway.json
+└── vite.config.ts
+```
 
-Konten inklusif, ringkasan, latihan, dan pengalaman aksesibilitas masih perlu ditinjau serta diuji bersama pendidik dan pelajar dengan kebutuhan yang beragam. Catatan batasan teknis lengkap tersedia di [HANDOFF.md](HANDOFF.md).
+---
 
-## Demo, Tim, dan Pengungkapan AI
+## Tim Pengusul (Tim Inovasi TemanAkses)
 
-- Live demo: belum dicantumkan.
-- Informasi tim: belum dicantumkan.
-- AI digunakan untuk membantu eksplorasi ide, pengembangan kode, debugging, dan penyempurnaan konten. Keputusan desain, struktur solusi, implementasi akhir, dan validasi karya dilakukan oleh tim peserta.
+- **Razzi Ronaldi** — *Ketua Tim / System Architecture & Full-Stack Engineer*
+- **Yandri Utama** — *Anggota Tim / UI/UX Accessibility & UDL Curriculum Researcher*

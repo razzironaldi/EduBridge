@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type LearningMode = 'focus' | 'audio' | 'simple'
-export type ReadingTheme = 'light' | 'soft' | 'high-contrast'
+export type ReadingTheme = 'light' | 'soft' | 'dark' | 'high-contrast'
 export type QuizMode = 'santai' | 'hard'
 export type MascotState = 'idle' | 'correct' | 'incorrect' | 'completed' | 'perfect' | 'encouragement'
 
@@ -27,6 +27,9 @@ interface AppState {
   lineHeight: number
   letterSpacing: number
   pageTheme: ReadingTheme
+  readingGuideEnabled: boolean
+  bionicReadingEnabled: boolean
+  lessonNotes: Record<string, string>
   userName: string
   onboardingComplete: boolean
   lessonProgress: Record<string, LessonProgress>
@@ -46,6 +49,9 @@ interface AppState {
   setLineHeight: (height: number) => void
   setLetterSpacing: (spacing: number) => void
   setPageTheme: (theme: ReadingTheme) => void
+  setReadingGuideEnabled: (enabled: boolean) => void
+  setBionicReadingEnabled: (enabled: boolean) => void
+  setLessonNote: (lessonId: string, note: string) => void
   setUserName: (name: string) => void
   setOnboardingComplete: (v: boolean) => void
   toggleLessonComplete: (id: string) => void
@@ -69,6 +75,9 @@ const defaultState = {
   lineHeight: 1.65,
   letterSpacing: 0,
   pageTheme: 'light' as ReadingTheme,
+  readingGuideEnabled: false,
+  bionicReadingEnabled: false,
+  lessonNotes: {} as Record<string, string>,
   userName: '',
   onboardingComplete: false,
   lessonProgress: {} as Record<string, LessonProgress>,
@@ -115,6 +124,15 @@ export const useStore = create<AppState>()(
       setLineHeight: (lineHeight) => set({ lineHeight }),
       setLetterSpacing: (letterSpacing) => set({ letterSpacing }),
       setPageTheme: (pageTheme) => set({ pageTheme }),
+      setReadingGuideEnabled: (readingGuideEnabled) => set({ readingGuideEnabled }),
+      setBionicReadingEnabled: (bionicReadingEnabled) => set({ bionicReadingEnabled }),
+      setLessonNote: (lessonId, note) =>
+        set((s) => ({
+          lessonNotes: {
+            ...s.lessonNotes,
+            [lessonId]: note,
+          },
+        })),
       setUserName: (name) => set({ userName: name }),
       setOnboardingComplete: (v) => set({ onboardingComplete: v }),
 

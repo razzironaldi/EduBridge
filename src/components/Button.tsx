@@ -17,9 +17,9 @@ const variants: Record<Variant, string> = {
 }
 
 const sizes: Record<Size, string> = {
-  sm: 'text-sm px-3.5 py-2 gap-1.5',
-  md: 'text-sm px-5 py-2.5 gap-2',
-  lg: 'text-base px-6 py-3 gap-2',
+  sm: 'min-h-[40px] text-sm px-4 py-2 gap-1.5',
+  md: 'min-h-[44px] text-sm px-5 py-2.5 gap-2',
+  lg: 'min-h-[48px] text-base px-6 py-3 gap-2',
 }
 
 interface ButtonProps {

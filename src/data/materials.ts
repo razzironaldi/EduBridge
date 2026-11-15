@@ -287,6 +287,21 @@ const baseMaterials: Material[] = [
           'Verifikasi sebelum bertindak',
         ],
       },
+      {
+        id: 'lit-4',
+        title: 'Etika dan Jejak Komunikasi Digital',
+        simpleSummary: 'Setiap pesan dan unggahan meninggalkan jejak digital. Gunakan bahasa yang menghormati orang lain dan periksa konteks sebelum membagikan ulang.',
+        duration: 10,
+        paragraphs: [
+          'Komunikasi digital yang sehat dimulai dari kesadaran bahwa setiap komentar, pesan, atau unggahan dapat tersimpan lama dan dibaca di luar konteks awalnya.',
+          'Biasakan membaca ulang pesan sebelum dikirim, menghargai privasi orang lain, serta tidak ikut menyebarkan tangkapan layar atau informasi pribadi tanpa izin.',
+        ],
+        keyPoints: [
+          'Pesan digital meninggalkan jejak',
+          'Hormati privasi dan izin orang lain',
+          'Periksa konteks sebelum meneruskan pesan',
+        ],
+      },
     ],
   },
   {
@@ -399,8 +414,45 @@ const additionalMaterials: Material[] = inclusiveThemeSeeds.map((theme) => ({
     keyPoints: section.keyPoints,
     duration: 8,
   })),
-  glossary: [],
-  quiz: [{ id: `${theme.id}-quiz`, ...theme.quiz }],
+  glossary: theme.glossary ?? [
+    {
+      term: theme.sections[0].title.split(' ').slice(0, 2).join(' '),
+      definition: theme.sections[0].summary,
+      example: theme.sections[0].keyPoints[0] ?? theme.description,
+    },
+    {
+      term: theme.category,
+      definition: theme.description,
+      example: theme.sections[1]?.summary ?? theme.sections[0].summary,
+    },
+  ],
+  quiz: [
+    { id: `${theme.id}-quiz-1`, ...theme.quiz },
+    {
+      id: `${theme.id}-quiz-2`,
+      question: `Apa fokus utama dari subtema "${theme.sections[1].title}"?`,
+      options: [
+        theme.sections[1].keyPoints[0],
+        'Mengabaikan perbedaan kebutuhan setiap pelajar',
+        'Membuat aturan kaku tanpa ruang diskusi',
+      ],
+      answer: theme.sections[1].keyPoints[0],
+      hint: `Perhatikan poin penting pada bagian "${theme.sections[1].title}".`,
+      explanation: `Benar. ${theme.sections[1].summary}`,
+    },
+    {
+      id: `${theme.id}-quiz-3`,
+      question: `Langkah praktis apa yang dianjurkan dalam "${theme.sections[2].title}"?`,
+      options: [
+        theme.sections[2].keyPoints[0],
+        'Menyembunyikan informasi penting dari pengguna',
+        'Menolak semua masukan dan umpan balik',
+      ],
+      answer: theme.sections[2].keyPoints[0],
+      hint: `Ingat kembali rangkuman pada bagian ketiga materi ${theme.title}.`,
+      explanation: `Tepat. ${theme.sections[2].summary}`,
+    },
+  ],
   accent: 'primary',
   icon: theme.icon,
 }))

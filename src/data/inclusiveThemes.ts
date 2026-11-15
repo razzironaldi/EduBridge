@@ -23,6 +23,7 @@ interface InclusiveThemeSeed {
   icon: string
   sections: [SubtopicSeed, SubtopicSeed, SubtopicSeed]
   quiz: QuizSeed
+  glossary?: { term: string; definition: string; example: string }[]
 }
 
 export const inclusiveThemeSeeds: InclusiveThemeSeed[] = [
@@ -528,6 +529,78 @@ export const inclusiveThemeSeeds: InclusiveThemeSeed[] = [
       answer: 'Masukan didengar dan ditindaklanjuti dengan jelas',
       hint: 'Partisipasi bukan hanya mengumpulkan pendapat; pertimbangkan apa yang terjadi sesudahnya.',
       explanation: 'Benar. Tindak lanjut yang jelas memperlihatkan bagaimana suara pelajar dipertimbangkan.',
+    },
+  },
+  {
+    id: 'desain-antarmuka-inklusif',
+    categoryId: 'digital-accessibility',
+    category: 'Aksesibilitas Digital',
+    title: 'Desain Antarmuka Web yang Ramah Semua',
+    description: 'Terapkan kontras warna, target sentuh, dan navigasi keyboard yang nyaman pada antarmuka modern.',
+    level: 'Menengah',
+    icon: 'Layout',
+    sections: [
+      {
+        title: 'Jaga kontras dan hierarki tipografi',
+        summary: 'Pastikan teks utama memiliki kontras jelas terhadap latar belakang dan ukuran huruf mudah dipindai.',
+        detail: 'Gunakan pasangan warna teks dan permukaan yang tegas agar pengguna di layar redup maupun terang tetap nyaman membaca. Bedakan judul, subjudul, dan isi dengan proporsi ukuran yang konsisten.',
+        keyPoints: ['Kontras teks dan latar harus jelas', 'Gunakan skala ukuran huruf yang konsisten', 'Jangan mengandalkan warna saja untuk status'],
+      },
+      {
+        title: 'Buat area klik dan sentuh yang lega',
+        summary: 'Berikan ukuran tombol dan jarak antarkontrol yang cukup agar mudah ditekan di layar sentuh maupun mouse.',
+        detail: 'Tombol yang terlalu kecil atau terlalu rapat menyulitkan pengguna dengan keterbatasan motorik maupun pengguna ponsel satu tangan. Sediakan minimal ruang sentuh 44 piksel untuk aksi penting.',
+        keyPoints: ['Ukuran target sentuh minimal 44px', 'Beri jarak aman antartombol aksi', 'Tampilkan umpan balik saat tombol ditekan'],
+      },
+      {
+        title: 'Pastikan alur keyboard dan fokus terlihat',
+        summary: 'Semua menu, dialog, dan formulir harus dapat dioperasikan dengan tombol Tab, Enter, dan Escape.',
+        detail: 'Indikator fokus seperti garis tepi yang jelas membantu pengguna mengetahui posisi aktif saat berpindah dengan keyboard. Saat dialog terbuka, arahkan fokus ke dalam dialog dan kembalikan saat ditutup.',
+        keyPoints: ['Urutan Tab mengikuti tata letak visual', 'Garis fokus selalu terlihat jelas', 'Dialog mendukung tombol Escape untuk keluar'],
+      },
+    ],
+    quiz: {
+      question: 'Mengapa tombol pada web perlu memiliki ukuran target sentuh yang cukup lega?',
+      options: ['Agar mudah ditekan di layar sentuh dan mengurangi salah klik', 'Agar memenuhi seluruh layar perangkat', 'Agar pengguna tidak bisa memakai keyboard'],
+      answer: 'Agar mudah ditekan di layar sentuh dan mengurangi salah klik',
+      hint: 'Pikirkan kenyamanan pengguna ponsel dan pengguna dengan kebutuhan motorik.',
+      explanation: 'Tepat. Target sentuh yang lega dan berjarak aman membantu semua pengguna berinteraksi dengan akurat.',
+    },
+  },
+  {
+    id: 'kolaborasi-digital-inklusif',
+    categoryId: 'safe-community',
+    category: 'Relasi dan Lingkungan Belajar Aman',
+    title: 'Kolaborasi Digital yang Setara dan Inklusif',
+    description: 'Kelola diskusi daring, dokumen bersama, dan kerja kelompok agar setiap anggota dapat berkontribusi.',
+    level: 'Menengah',
+    icon: 'UsersFour',
+    sections: [
+      {
+        title: 'Sediakan jalur kontribusi sinkron dan asinkron',
+        summary: 'Gabungkan pertemuan langsung dengan catatan tertulis agar anggota dengan ritme berbeda tetap bisa berpendapat.',
+        detail: 'Tidak semua pelajar dapat langsung berbicara saat rapat video atau memiliki koneksi yang stabil. Menyediakan dokumen bersama atau kolom tanggapan tertulis memberi kesempatan yang lebih adil.',
+        keyPoints: ['Sediakan rangkuman tertulis setiap diskusi', 'Izinkan masukan lewat teks maupun suara', 'Beri tenggat waktu yang jelas untuk tanggapan'],
+      },
+      {
+        title: 'Rapikan dokumen bersama agar mudah diakses',
+        summary: 'Gunakan judul bagian, daftar tugas berpemilik, dan keterangan perubahan yang jelas pada dokumen tim.',
+        detail: 'Dokumen kolaboratif yang berantakan membingungkan pembaca layar dan menyulitkan anggota tim melacak keputusan. Buat struktur bagian yang konsisten sejak awal proyek.',
+        keyPoints: ['Tulis keputusan dan pemilik tugas dengan jelas', 'Gunakan struktur judul pada dokumen tim', 'Hindari menaruh instruksi penting hanya di gambar'],
+      },
+      {
+        title: 'Evaluasi proses kerja kelompok secara berkala',
+        summary: 'Luangkan waktu singkat untuk menanyakan apakah pembagian tugas dan alat komunikasi sudah nyaman bagi semua.',
+        detail: 'Pemeriksaan singkat di tengah proyek membantu tim memperbaiki hambatan sebelum tenggat akhir. Fokuskan evaluasi pada cara kerja dan dukungan tim, bukan menyalahkan individu.',
+        keyPoints: ['Tanyakan hambatan alat atau komunikasi', 'Sesuaikan pembagian peran bila diperlukan', 'Rayakan kemajuan kecil bersama tim'],
+      },
+    ],
+    quiz: {
+      question: 'Mengapa kolaborasi daring sebaiknya menyediakan jalur tertulis selain rapat suara?',
+      options: ['Agar anggota dengan koneksi atau cara komunikasi berbeda tetap bisa berkontribusi', 'Agar anggota tidak perlu membaca tujuan proyek', 'Agar diskusi berlangsung tanpa dokumentasi'],
+      answer: 'Agar anggota dengan koneksi atau cara komunikasi berbeda tetap bisa berkontribusi',
+      hint: 'Pertimbangkan kondisi koneksi internet dan preferensi komunikasi anggota tim.',
+      explanation: 'Benar. Kombinasi jalur sinkron dan asinkron membuat kolaborasi lebih adil dan terdokumentasi.',
     },
   },
 ]

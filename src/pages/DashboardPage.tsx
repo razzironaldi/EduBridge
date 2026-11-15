@@ -6,6 +6,10 @@ import {
   CheckCircle,
   Clock,
   Bookmark,
+  Sparkle,
+  SlidersHorizontal,
+  SpeakerHigh,
+  NotePencil,
 } from '@phosphor-icons/react'
 import { Button } from '../components/Button'
 import { Card, CardBody } from '../components/Card'
@@ -18,8 +22,21 @@ import { getModeSummary } from '../data/modes'
 
 export function DashboardPage() {
   const [reviewClock, setReviewClock] = useState(0)
-  const { userName, learningModes, pageTheme, lessonProgress, quizReview } = useStore()
+  const {
+    userName,
+    learningModes,
+    pageTheme,
+    lessonProgress,
+    quizReview,
+    lessonNotes,
+    bionicReadingEnabled,
+    setBionicReadingEnabled,
+    readingGuideEnabled,
+    setReadingGuideEnabled,
+    toggleLearningMode,
+  } = useStore()
   const preferenceSummary = getModeSummary(learningModes, pageTheme)
+  const notesCount = Object.values(lessonNotes).filter((n) => n.trim().length > 0).length
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setReviewClock(Date.now()), 0)
@@ -69,52 +86,115 @@ export function DashboardPage() {
       </div>
 
       <div data-scroll-reveal className="grid gap-6 lg:grid-cols-3 mb-8">
-        <Card scrollReveal className="lg:col-span-2">
-          <CardBody className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-text-primary">Progres Keseluruhan</h2>
-              <p className="text-sm text-text-secondary mt-0.5">
-                {completedCount} dari {totalLessons} pelajaran selesai
-              </p>
-              <ProgressBar value={overallPct} className="mt-3" />
-            </div>
-            <div className="flex gap-4 shrink-0">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary-600">{overallPct}%</p>
-                <p className="text-xs text-text-muted">Selesai</p>
+        <div className="double-bezel lg:col-span-2">
+          <div className="double-bezel-inner h-full p-5 sm:p-6 flex flex-col justify-between gap-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-bold text-primary-800">
+                  Kokpit Belajar Adaptif
+                </span>
+                <h2 className="mt-2 text-lg font-extrabold text-text-primary">Progres Keseluruhan</h2>
+                <p className="text-sm text-text-secondary mt-0.5">
+                  {completedCount} dari {totalLessons} subtema telah kamu selesaikan
+                </p>
+                <ProgressBar value={overallPct} className="mt-3" />
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-accent-600">{bookmarkedCount}</p>
-                <p className="text-xs text-text-muted">Ditandai</p>
+              <div className="grid grid-cols-3 gap-3 shrink-0 w-full sm:w-auto">
+                <div className="rounded-xl border border-border bg-surface-elevated px-3.5 py-2.5 text-center">
+                  <p className="text-xl font-extrabold text-primary-600">{overallPct}%</p>
+                  <p className="text-[11px] font-medium text-text-muted">Selesai</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface-elevated px-3.5 py-2.5 text-center">
+                  <p className="text-xl font-extrabold text-accent-600">{bookmarkedCount}</p>
+                  <p className="text-[11px] font-medium text-text-muted">Bookmark</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface-elevated px-3.5 py-2.5 text-center">
+                  <p className="text-xl font-extrabold text-primary-800">{notesCount}</p>
+                  <p className="text-[11px] font-medium text-text-muted">Catatan</p>
+                </div>
               </div>
             </div>
-          </CardBody>
-        </Card>
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+              <span className="text-xs font-semibold text-text-muted mr-1">Alat Bantu Cepat:</span>
+              <button
+                type="button"
+                onClick={() => setBionicReadingEnabled(!bionicReadingEnabled)}
+                aria-pressed={bionicReadingEnabled}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer ${
+                  bionicReadingEnabled
+                    ? 'border-primary-600 bg-primary-50 text-primary-800'
+                    : 'border-border bg-surface text-text-secondary hover:bg-surface-muted'
+                }`}
+              >
+                <Sparkle size={14} weight={bionicReadingEnabled ? 'fill' : 'regular'} className="text-primary-600" />
+                Bionic Reading
+              </button>
+              <button
+                type="button"
+                onClick={() => setReadingGuideEnabled(!readingGuideEnabled)}
+                aria-pressed={readingGuideEnabled}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer ${
+                  readingGuideEnabled
+                    ? 'border-primary-600 bg-primary-50 text-primary-800'
+                    : 'border-border bg-surface text-text-secondary hover:bg-surface-muted'
+                }`}
+              >
+                <SlidersHorizontal size={14} weight={readingGuideEnabled ? 'bold' : 'regular'} className="text-primary-600" />
+                Penggaris Fokus
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleLearningMode('audio')}
+                aria-pressed={learningModes.includes('audio')}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer ${
+                  learningModes.includes('audio')
+                    ? 'border-primary-600 bg-primary-50 text-primary-800'
+                    : 'border-border bg-surface text-text-secondary hover:bg-surface-muted'
+                }`}
+              >
+                <SpeakerHigh size={14} weight={learningModes.includes('audio') ? 'fill' : 'regular'} className="text-primary-600" />
+                Audio Reader
+              </button>
+              {notesCount > 0 && (
+                <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-text-secondary">
+                  <NotePencil size={14} className="text-primary-600" />
+                  {notesCount} catatan tersimpan
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
         {recentMaterial && (
-          <Card interactive scrollReveal>
-            <CardBody>
-              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">
-                {recentSection ? 'Lanjutkan Belajar' : 'Mulai Belajar'}
-              </p>
-              <h3 className="mt-2 font-semibold text-text-primary">{recentMaterial.title}</h3>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge>{recentMaterial.level}</Badge>
-                <span className="text-xs text-text-muted flex items-center gap-1">
-                  <Clock size={12} /> {recentMaterial.totalDuration} menit
-                </span>
+          <div className="double-bezel">
+            <div className="double-bezel-inner h-full p-5 sm:p-6 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-bold text-primary-700 uppercase tracking-wider">
+                  {recentSection ? 'Lanjutkan Belajar' : 'Rekomendasi Mulai'}
+                </p>
+                <h3 className="mt-2 text-lg font-extrabold text-text-primary">{recentMaterial.title}</h3>
+                <p className="mt-1 text-xs text-text-secondary line-clamp-2">
+                  {recentSection ? `Bagian terakhir: ${recentSection.title}` : recentMaterial.description}
+                </p>
+                <div className="flex items-center gap-2 mt-3">
+                  <Badge>{recentMaterial.level}</Badge>
+                  <span className="text-xs text-text-muted flex items-center gap-1">
+                    <Clock size={12} /> {recentMaterial.totalDuration} menit
+                  </span>
+                </div>
               </div>
               <Button
                 to={resumeUrl}
-                size="sm"
-                className="mt-4"
+                size="md"
+                className="mt-5"
                 fullWidth
               >
-                {recentSection ? 'Lanjutkan' : 'Mulai Belajar'}
-                <ArrowRight size={16} />
+                {recentSection ? 'Lanjutkan Sekarang' : 'Mulai Belajar'}
+                <ArrowRight size={16} weight="bold" />
               </Button>
-            </CardBody>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
 

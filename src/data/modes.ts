@@ -54,6 +54,7 @@ export const getModeSummary = (selectedModes: LearningMode[], theme: ReadingThem
     : learningModes.filter((mode) => mode.id !== 'visual' && selectedModes.includes(mode.id)).map((mode) => mode.name)
 
   if (theme === 'soft') names.push('Tema lembut')
+  if (theme === 'dark') names.push('Mode gelap')
   if (theme === 'high-contrast') names.push('Kontras tinggi')
 
   return names.join(' + ')
