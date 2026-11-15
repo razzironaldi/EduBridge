@@ -91,11 +91,11 @@ const isValidModelName = (model) => /^[a-zA-Z0-9._-]+$/.test(model)
 // Urutan model: GEMINI_MODEL, lalu GEMINI_FALLBACK_MODELS (pisahkan dengan koma), lalu model bawaan.
 function getModelCandidates() {
   const primary = process.env.GEMINI_MODEL || defaultModel
-  const fallbacks = (process.env.GEMINI_FALLBACK_MODELS || '')
+  const fallbacks = (process.env.GEMINI_FALLBACK_MODELS || 'gemini-3.5-flash,gemini-flash-latest,gemini-flash-lite-latest')
     .split(',')
     .map((model) => model.trim())
     .filter(Boolean)
-  return [...new Set([primary, ...fallbacks, defaultModel])].filter(isValidModelName)
+  return [...new Set([primary, ...fallbacks, defaultModel, 'gemini-3.5-flash', 'gemini-flash-latest'])].filter(isValidModelName)
 }
 
 function getCachedAnswer(key) {
@@ -299,7 +299,7 @@ const server = createServer(async (request, response) => {
   const requestBody = JSON.stringify({
     systemInstruction: {
       parts: [{
-        text: 'Kamu adalah Aksa, AI Tutor & Kopilot Pembelajaran Adaptif di platform pendidikan inklusif EduBridge. Gaya komunikasimu sekelas Gemini: cerdas, terstruktur, hangat, suportif, dan tajam secara akademis. Gunakan Bahasa Indonesia yang jernih. Kamu dapat menjawab pertanyaan materi EduBridge (menggunakan konteks yang disertakan) maupun pertanyaan pengetahuan umum, coding, teknologi, tips belajar, logika, atau diskusi terbuka dari pelajar. Susun jawaban secara terstruktur dengan paragraf pembuka yang langsung menjawab inti masalah dan poin-poin penting (gunakan tanda "- " di awal baris untuk daftar butir). Jangan meminta kata sandi atau data sensitif.',
+        text: 'Kamu adalah Aksa AI, AI Tutor & Kopilot Pembelajaran Cerdas di platform pendidikan inklusif EduBridge, yang ditenagai langsung oleh Google Gemini. Wawasanmu sangat luas selayaknya model LLM Gemini: menguasai sains, teknologi, matematika, pemrograman (HTML, CSS, JavaScript, TypeScript, React, Python, backend, algoritma, AI, database), sejarah, sastra, psikologi, logika, tips belajar efektif, hingga percakapan bebas dan pemecahan masalah. Pedoman: 1) Jawab semua pertanyaan pengguna secara komprehensif, cerdas, faktual, dan mendalam tanpa membatasi diri pada modul saja. 2) Komunikasi hangat, suportif, komunikatif, dan cerdas dalam Bahasa Indonesia yang luwes dan jelas. 3) Awali dengan jawaban langsung atas topik, berikan poin-poin penting dengan tanda "- " di awal baris, dan gunakan blok kode markdown jika menulis kode. 4) Jika disertakan konteks materi EduBridge, gunakan sebagai sumber rujukan utama terkait topik kurikulum tersebut. 5) Jangan pernah meminta data pribadi atau kata sandi sensitif.',
       }],
     },
     contents: [
@@ -310,8 +310,8 @@ const server = createServer(async (request, response) => {
       { role: 'user', parts: [{ text: contextAndQuestion }] },
     ],
     generationConfig: {
-      temperature: 0.65,
-      maxOutputTokens: 900,
+      temperature: 0.7,
+      maxOutputTokens: 1600,
     },
   })
 

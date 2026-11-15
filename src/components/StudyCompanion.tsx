@@ -117,13 +117,13 @@ const PERSONA_CONFIG: Record<
 const openingMessage: Message = {
   id: 'opening-1',
   role: 'companion',
-  heading: 'Halo! Aku Aksa, Kopilot Belajarmu.',
+  heading: 'Halo! Aku Aksa, AI Copilot EduBridge ditenagai Gemini.',
   summary:
-    'Pilih topik materi atau ketik pertanyaan di bawah. Kamu juga bisa berpindah ke tab Uji Kuis atau Kontrol Cepat di bagian atas.',
+    'Aku siap membantumu dengan wawasan luas setara Gemini: mulai dari modul inklusif EduBridge, sains, coding, pemecahan masalah, hingga diskusi bebas.',
   bullets: [
-    'Tanya istilah glosarium atau ringkasan bab secara instan',
-    'Gunakan tombol mikrofon untuk bertanya lewat suara (id-ID)',
-    'Simpan rangkuman penting langsung ke Catatan Belajarmu',
+    'Tanya apa saja: materi sekolah/kuliah, pemrograman, sains, tips belajar, atau diskusi bebas',
+    'Dikte suara Bahasa Indonesia (id-ID) dengan tombol mikrofon',
+    'Simpan rangkuman dan jawaban penting langsung ke Catatan Belajar',
   ],
 }
 
@@ -293,6 +293,96 @@ interface AgentExecutionResult {
   citations?: Citation[]
 }
 
+function renderInlineTokens(text: string) {
+  const tokens = text.split(/(\*\*.*?\*\*|`.*?`)/g)
+  return tokens.map((token, i) => {
+    if (token.startsWith('**') && token.endsWith('**') && token.length > 4) {
+      return (
+        <strong key={i} className="font-bold text-text-primary">
+          {token.slice(2, -2)}
+        </strong>
+      )
+    }
+    if (token.startsWith('`') && token.endsWith('`') && token.length > 2) {
+      return (
+        <code
+          key={i}
+          className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-primary-800 border border-border/70"
+        >
+          {token.slice(1, -1)}
+        </code>
+      )
+    }
+    return token
+  })
+}
+
+function FormattedMessageContent({ content }: { content: string }) {
+  if (!content) return null
+
+  const parts = content.split(/(```[\s\S]*?```)/g)
+
+  return (
+    <div className="space-y-2 mt-1">
+      {parts.map((part, idx) => {
+        if (part.startsWith('```') && part.endsWith('```')) {
+          const firstLineEnd = part.indexOf('\n')
+          const lang = firstLineEnd !== -1 ? part.slice(3, firstLineEnd).trim() : ''
+          const code = firstLineEnd !== -1 ? part.slice(firstLineEnd + 1, -3) : part.slice(3, -3)
+          return (
+            <div
+              key={idx}
+              className="my-2 rounded-xl bg-slate-900 text-slate-100 p-3 text-[11px] sm:text-xs font-mono overflow-x-auto shadow-inner border border-slate-800"
+            >
+              {lang && (
+                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">
+                  {lang}
+                </div>
+              )}
+              <pre className="whitespace-pre">
+                <code>{code}</code>
+              </pre>
+            </div>
+          )
+        }
+
+        const paragraphs = part.split(/\n{2,}/)
+        return (
+          <div key={idx} className="space-y-1.5">
+            {paragraphs.map((para, pIdx) => {
+              const lines = para.split('\n')
+              const isList = lines.length > 0 && lines.every((l) => /^[-*•]\s+/.test(l.trim()))
+              if (isList) {
+                return (
+                  <ul key={pIdx} className="space-y-1 pl-1">
+                    {lines.map((line, lIdx) => (
+                      <li
+                        key={lIdx}
+                        className="flex items-start gap-2 text-xs sm:text-[13px] text-text-secondary leading-relaxed"
+                      >
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary-600 shrink-0" />
+                        <span>{renderInlineTokens(line.replace(/^[-*•]\s+/, ''))}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }
+              return (
+                <p
+                  key={pIdx}
+                  className="text-xs sm:text-[13px] leading-relaxed text-text-secondary whitespace-pre-wrap"
+                >
+                  {renderInlineTokens(para)}
+                </p>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function StudyCompanion() {
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
@@ -319,6 +409,7 @@ export function StudyCompanion() {
   const [draft, setDraft] = useState('')
   const [messages, setMessages] = useState<Message[]>([openingMessage])
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null)
+  const [aiModelName, setAiModelName] = useState<string>('Gemini 3.5 AI')
   const [isSending, setIsSending] = useState(false)
   const [isListeningMic, setIsListeningMic] = useState(false)
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null)
@@ -376,11 +467,19 @@ export function StudyCompanion() {
   }, [isOpen, activeTab])
 
   useEffect(() => {
-    if (!isOpen) return
     const controller = new AbortController()
     fetch('/api/companion/status', { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((status: { configured?: boolean }) => setAiConfigured(Boolean(status.configured)))
+      .then((status: { configured?: boolean; model?: string }) => {
+        setAiConfigured(Boolean(status.configured))
+        if (status.model) {
+          const cleanModel = status.model
+            .replace(/^models\//, '')
+            .replace(/[-_]/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase())
+          setAiModelName(cleanModel.includes('Gemini') ? cleanModel : `Gemini ${cleanModel}`)
+        }
+      })
       .catch(() => {
         if (!controller.signal.aborted) setAiConfigured(false)
       })
@@ -874,21 +973,6 @@ export function StudyCompanion() {
 
       const localResult = buildLocalIntelligence(question, activePersona)
 
-      if (aiConfigured === false) {
-        setMessages((current) =>
-          [
-            ...current,
-            {
-              id: `companion-local-${Date.now()}`,
-              role: 'companion' as const,
-              persona: activePersona,
-              ...localResult,
-            },
-          ].slice(-14)
-        )
-        return
-      }
-
       setIsSending(true)
 
       const contextSection = activeMaterial?.sections.find((item) => item.id === activeSectionId)
@@ -926,22 +1010,27 @@ export function StudyCompanion() {
         const result = (await response.json()) as {
           answer?: string
           code?: string
+          model?: string
         }
 
         if (response.ok && result.answer) {
           setAiConfigured(true)
-          const cleanRaw = result.answer.replace(/\*\*/g, '').trim()
-          const lines = cleanRaw
-            .split('\n')
-            .map((l) => l.trim())
-            .filter(Boolean)
-          const aiBullets = lines
-            .filter((l) => /^[-•*]\s+/.test(l))
-            .map((l) => l.replace(/^[-•*]\s+/, '').trim())
-          const aiParagraphs = lines
-            .filter((l) => !/^[-•*]\s+/.test(l) && !/^#+\s+/.test(l))
-            .join('\n\n')
-          const aiHeadingMatch = lines.find((l) => /^#+\s+/.test(l))?.replace(/^#+\s+/, '')
+          if (result.model) {
+            const clean = result.model
+              .replace(/^models\//, '')
+              .replace(/[-_]/g, ' ')
+              .replace(/\b\w/g, (c) => c.toUpperCase())
+            setAiModelName(clean.includes('Gemini') ? clean : `Gemini ${clean}`)
+          }
+
+          const raw = result.answer.trim()
+          const lines = raw.split('\n')
+          let heading: string | undefined
+          let cleanContent = raw
+          if (lines[0]?.startsWith('#')) {
+            heading = lines[0].replace(/^#+\s*/, '').trim()
+            cleanContent = lines.slice(1).join('\n').trim()
+          }
 
           setMessages((current) =>
             [
@@ -949,9 +1038,8 @@ export function StudyCompanion() {
               {
                 id: `companion-ai-${Date.now()}`,
                 role: 'companion' as const,
-                heading: aiHeadingMatch ?? localResult.heading ?? 'Aksa · Gemini Flash',
-                summary: aiParagraphs || cleanRaw,
-                bullets: aiBullets.length > 0 ? aiBullets.slice(0, 5) : undefined,
+                heading: heading ?? localResult.heading ?? 'Aksa · Gemini AI',
+                summary: cleanContent,
                 persona: activePersona,
                 citations: localResult.citations,
                 canSaveToNote: true,
@@ -992,7 +1080,6 @@ export function StudyCompanion() {
     [
       activeMaterial,
       activeSectionId,
-      aiConfigured,
       buildLocalIntelligence,
       executeAgenticCommand,
       isSending,
@@ -1064,11 +1151,13 @@ export function StudyCompanion() {
             : `Apa poin penting ${activeMaterial.title}?`,
         },
         { label: 'Langkah Praktis', prompt: `Bagaimana langkah menerapkan ${activeMaterial.title}?`, persona: 'step' as TutorPersona },
+        { label: 'Tanya Bebas', prompt: 'Berikan tips belajar yang efektif untuk materi ini' },
       ]
     : [
-        { label: 'Apa itu UDL?', prompt: 'Jelaskan apa itu Universal Design for Learning' },
+        { label: 'Apa itu UDL?', prompt: 'Jelaskan apa itu Universal Design for Learning dan penerapannya' },
+        { label: 'Tanya Coding / Web', prompt: 'Jelaskan perbedaan synchronous dan asynchronous di JavaScript dengan contoh' },
         { label: 'Tipografi Disleksia', prompt: 'Bagaimana aturan tipografi ramah disleksia?' },
-        { label: 'Struktur Pembaca Layar', prompt: 'Jelaskan struktur semantik pembaca layar' },
+        { label: 'Tips Belajar Cepat', prompt: 'Berikan 3 teknik belajar berbasis sains otak (cognitive science)' },
       ]
 
   return (
@@ -1118,9 +1207,19 @@ export function StudyCompanion() {
                     <h2 className="text-sm font-extrabold tracking-tight text-text-primary">
                       Aksa Copilot
                     </h2>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-bold text-primary-800 border border-primary-200">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary-600" />
-                      {aiConfigured ? 'Gemini AI' : 'Lokal Pintar'}
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition-colors ${
+                        aiConfigured
+                          ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                          : 'bg-primary-50 text-primary-800 border-primary-200'
+                      }`}
+                    >
+                      <Sparkle
+                        size={11}
+                        weight="fill"
+                        className={aiConfigured ? 'text-emerald-600' : 'text-primary-600'}
+                      />
+                      <span>{aiConfigured ? aiModelName : 'Lokal Pintar'}</span>
                     </span>
                   </div>
                   <p className="truncate text-[11px] text-text-secondary">
@@ -1267,10 +1366,8 @@ export function StudyCompanion() {
                           </h3>
                         )}
 
-                        {/* Paragraf Inti */}
-                        <p className="mt-1 text-xs sm:text-[13px] leading-relaxed text-text-secondary whitespace-pre-wrap">
-                          {message.summary}
-                        </p>
+                        {/* Paragraf Inti / Format Konten */}
+                        <FormattedMessageContent content={message.summary} />
 
                         {/* Kotak Analogi (jika ada) */}
                         {message.analogy && (
@@ -1457,9 +1554,13 @@ export function StudyCompanion() {
                   id="companion-question"
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder={isListeningMic ? 'Mendengarkan suaramu...' : 'Tanya materi atau istilah...'}
+                  placeholder={
+                    isListeningMic
+                      ? 'Mendengarkan suaramu...'
+                      : 'Tanya apa saja ke Aksa (Gemini AI)...'
+                  }
                   className="h-10 min-w-0 flex-1 rounded-xl border border-border-strong bg-surface px-3 text-xs sm:text-sm text-text-primary placeholder:text-text-muted focus-visible:border-primary-600"
-                  maxLength={350}
+                  maxLength={600}
                 />
                 <button
                   type="submit"

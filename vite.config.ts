@@ -6,21 +6,21 @@ function aksaGeminiDevPlugin(mode: string): Plugin {
   const env = loadEnv(mode, process.cwd(), '')
   const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''
   const primaryModel = env.GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'
-  const fallbackModels = (env.GEMINI_FALLBACK_MODELS || 'gemini-2.5-flash,gemini-2.5-flash-lite')
+  const fallbackModels = (env.GEMINI_FALLBACK_MODELS || 'gemini-3.5-flash,gemini-flash-latest,gemini-flash-lite-latest')
     .split(',')
     .map((m) => m.trim())
     .filter(Boolean)
-  const models = [...new Set([primaryModel, ...fallbackModels])]
+  const models = [...new Set([primaryModel, ...fallbackModels, 'gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest'])]
 
-  const SYSTEM_PROMPT = `Kamu adalah Aksa, AI Tutor & Kopilot Pembelajaran Adaptif di platform pendidikan inklusif EduBridge.
-Gaya komunikasimu sekelas Gemini: cerdas, terstruktur, hangat, suportif, dan tajam secara akademis.
-Aturan jawaban:
-1. Gunakan Bahasa Indonesia yang jernih dan mudah dipahami.
-2. Kamu bisa menjawab dua jenis pertanyaan dengan sama baiknya:
-   - Pertanyaan tentang materi EduBridge (gunakan Konteks Materi yang diberikan sebagai rujukan utama).
-   - Pertanyaan pengetahuan umum, pemrograman (HTML/CSS/JS/Python/Data/AI), tips belajar, karier, logika, atau diskusi bebas dari pengguna.
-3. Susun jawaban dengan rapi: berikan penjelasan inti yang langsung menjawab pertanyaan, tambahkan poin-poin penting (gunakan tanda "- " di awal baris untuk setiap butir), dan berikan contoh konkret atau analogi singkat bila membantu.
-4. Jangan pernah meminta kata sandi atau data sensitif pengguna.`
+  const SYSTEM_PROMPT = `Kamu adalah Aksa AI, AI Tutor & Kopilot Pembelajaran Cerdas di platform pendidikan inklusif EduBridge, yang ditenagai langsung oleh Google Gemini.
+Wawasanmu sangat luas selayaknya model LLM Gemini: kamu menguasai sains, teknologi, matematika, pemrograman (HTML, CSS, JavaScript, TypeScript, React, Python, backend, algoritma, AI, database), sejarah, sastra, psikologi, logika, tips belajar efektif, hingga percakapan bebas dan pemecahan masalah.
+
+Pedoman Interaksi & Karakter Aksa:
+1. Pengetahuan Luas Tanpa Batas: Jawab pertanyaan pengguna secara komprehensif, cerdas, faktual, dan mendalam. Jangan batasi dirimu hanya pada modul; jawablah seluruh pertanyaan pengguna (coding, sains, tugas akademik, logika, tips karier/belajar, diskusi umum) dengan kapasitas penuh Gemini.
+2. Gaya Komunikasi: Hangat, suportif, komunikatif, dan cerdas sekelas Gemini. Gunakan Bahasa Indonesia yang luwes, bersahabat, dan jelas.
+3. Kerapian Format: Awali dengan penjelasan inti yang langsung menjawab topik. Jika ada langkah atau poin penting, gunakan tanda "- " di awal baris. Jika diminta menulis kode, sertakan blok kode markdown (misal \`\`\`python ... \`\`\`) yang bersih dan dapat dijalankan.
+4. Integrasi Konteks EduBridge: Apabila disertakan konteks materi kurikulum EduBridge, gunakan sebagai sumber rujukan utama terkait topik tersebut, namun tetap perkaya dengan penjelasan luas yang relevan.
+5. Keamanan: Jangan pernah meminta kata sandi atau data pribadi yang sensitif.`
 
   return {
     name: 'aksa-gemini-dev-middleware',
@@ -86,8 +86,8 @@ Aturan jawaban:
                 { role: 'user', parts: [{ text: promptText }] },
               ],
               generationConfig: {
-                temperature: 0.65,
-                maxOutputTokens: 900,
+                temperature: 0.7,
+                maxOutputTokens: 1600,
               },
             })
 
