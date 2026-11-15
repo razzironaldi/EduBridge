@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "web"
+      }
+    }
+  ],
+  "services": {
+    "web": {
+      "root": ".",
+      "framework": "vite",
+      "buildCommand": "npm run build"
+    }
+  }
+}
